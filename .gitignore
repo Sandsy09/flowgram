@@ -13,6 +13,7 @@ htmlcov/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+site/
 
 # Local secrets and credentials -- never commit these.
 .env

@@ -8,4 +8,4 @@ Reuable components, modular diagram builder
 uv add git+https://github.com/Sandsy09/flowgram
 ```
 
-See the [API Reference](reference.md).
+See the [API Reference](./reference.md).

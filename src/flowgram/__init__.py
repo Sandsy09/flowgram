@@ -1,4 +1,4 @@
-"""Reuable components, modular diagram builder."""
+"""Reusable components, modular diagram builder."""
 
 from importlib.metadata import PackageNotFoundError, version
 
