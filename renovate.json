@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "Europe/London",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "Group dev tooling into one PR - these move together and are low risk.",
+      "matchDepTypes": ["dependency-groups"],
+      "groupName": "dev tooling",
+      "semanticCommitType": "chore"
+    },
+    {
+      "description": "Auto-merge patch and minor dev updates once CI is green.",
+      "matchDepTypes": ["dependency-groups"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Runtime dependencies always get a human.",
+      "matchDepTypes": ["dependencies"],
+      "automerge": false,
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "Group reviewed GitHub Action digest and version updates.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "semanticCommitType": "ci",
+      "automerge": false
+    }
+  ]
+}

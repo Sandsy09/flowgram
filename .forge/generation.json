@@ -1,0 +1,301 @@
+{
+  "components": [
+    {
+      "id": "library",
+      "version": "1.0.1"
+    },
+    {
+      "id": "changelog",
+      "version": "1.0.0"
+    },
+    {
+      "id": "coverage",
+      "version": "1.0.0"
+    },
+    {
+      "id": "documentation",
+      "version": "1.0.0"
+    },
+    {
+      "id": "dotenv-example",
+      "version": "1.0.0"
+    },
+    {
+      "id": "jupyter",
+      "version": "1.0.0"
+    },
+    {
+      "id": "pre-commit",
+      "version": "1.0.1"
+    },
+    {
+      "id": "pyright",
+      "version": "1.0.0"
+    },
+    {
+      "id": "renovate",
+      "version": "1.0.0"
+    },
+    {
+      "id": "github",
+      "version": "1.0.0"
+    }
+  ],
+  "metadata_version": 1,
+  "output": [
+    {
+      "digest": "sha256:e98ce6e557f776f236fc2e7ba4e81c8a8c161f0fc7c5a4931d5c4c0e27846ae3",
+      "owner": "component:coverage",
+      "regeneration": "replace",
+      "target": ".coveragerc"
+    },
+    {
+      "digest": "sha256:a10720f6f50dcdf97ba7b7c019c8c343ba956e4856aa01533dfafc76e3d4c88a",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": ".editorconfig"
+    },
+    {
+      "digest": "sha256:4e42f1e0c593fdd893bb552420ccf2d0274832ebbf8324ec9e286b049ceb3e6d",
+      "owner": "component:dotenv-example",
+      "regeneration": "replace",
+      "target": ".env.example"
+    },
+    {
+      "digest": "sha256:373dea2f58df869861b527c087fd1809edf12baf10c0c20941effca0863f9dbc",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": ".gitattributes"
+    },
+    {
+      "digest": "sha256:7f88c685e67dc456e7959c15ae92e277a2d696a985bcb981a3379d2a1ef5c52b",
+      "owner": "component:github",
+      "regeneration": "replace",
+      "target": ".github/CODEOWNERS"
+    },
+    {
+      "digest": "sha256:4a6d05dcdbda894c2742a01a6e35b60d0b87c41b7a4bd4bf02101c36b226d734",
+      "owner": "component:github",
+      "regeneration": "replace",
+      "target": ".github/ISSUE_TEMPLATE/bug_report.yml"
+    },
+    {
+      "digest": "sha256:1f103c6a9dd07cd13a9a6f17ace6b813f47747eb9cb7e00488cb2073caaf91bb",
+      "owner": "component:github",
+      "regeneration": "replace",
+      "target": ".github/ISSUE_TEMPLATE/config.yml"
+    },
+    {
+      "digest": "sha256:2142060e1afc1c35cc4760690af5b55a82c2a678529b58cba3e2c4b305820604",
+      "owner": "component:github",
+      "regeneration": "replace",
+      "target": ".github/ISSUE_TEMPLATE/feature_request.yml"
+    },
+    {
+      "digest": "sha256:1aabb313617ea373b11694755522f27d6311b11b6455ab0b1b4a2d2f24afea1d",
+      "owner": "component:github",
+      "regeneration": "replace",
+      "target": ".github/pull_request_template.md"
+    },
+    {
+      "digest": "sha256:f114270bf9504d3f1a426ed85e4ea0f4725e639795263a18841377e5fdd82234",
+      "owner": "component:github",
+      "regeneration": "replace",
+      "target": ".github/workflows/ci.yml"
+    },
+    {
+      "digest": "sha256:1b0015dbc83fe61e87072f09cb7498e443dcd399fda6f32579243d9a5f4875a8",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": ".gitignore"
+    },
+    {
+      "digest": "sha256:cda29087e7e4664995c7e5d413e5728e2952887cf246f1dfef93b16b34b72a5f",
+      "owner": "component:pre-commit",
+      "regeneration": "replace",
+      "target": ".pre-commit-config.yaml"
+    },
+    {
+      "digest": "sha256:02e735b3dfe1c32833eb550b7ff8ffa17f5f2bc3fa1e7bae61a8f5a3883ce398",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": ".python-version"
+    },
+    {
+      "digest": "sha256:c856189bcbb13aa37364fffe35faf48b814c5803ea3f82ea05f00e9cc577e37d",
+      "owner": "component:changelog",
+      "regeneration": "skip-if-exists",
+      "target": "CHANGELOG.md"
+    },
+    {
+      "digest": "sha256:62c70a4a467d3a7149886ea02b45343784cabf28a81bda48cc34c4e77a073db6",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": "CONTRIBUTING.md"
+    },
+    {
+      "digest": "sha256:5ab67246c882b7d2e2305d1ae10e78aae23fb5a1b10abde5fa7426de2077b69c",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": "LICENSE"
+    },
+    {
+      "digest": "sha256:09fbec04e89481dc6c722fecbb169f5470ab702b402bda29023661ac825f4077",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": "README.md"
+    },
+    {
+      "digest": "sha256:0b6ec2d5e5ac96dddd1cf75e49683ea49dcfa6b16be8f3a4848f2b7890f6eb8c",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": "SECURITY.md"
+    },
+    {
+      "digest": "sha256:4c686e31f400c811839fcc0a94ca661f2c476d8f3127cfbc8c6593e7ddd7c577",
+      "owner": "component:changelog",
+      "regeneration": "replace",
+      "target": "cliff.toml"
+    },
+    {
+      "digest": "sha256:6b2f3ec462935ec8921e41ba8742da486e8c4f210b8c6504da59000abf6579da",
+      "owner": "component:documentation",
+      "regeneration": "replace",
+      "target": "docs/adr/0001-record-architecture-decisions.md"
+    },
+    {
+      "digest": "sha256:abb3e1fb6168bb8cc18c3b5dc0d8b0ea17124f7b98cc6f05566ba261d9a540a2",
+      "owner": "component:documentation",
+      "regeneration": "replace",
+      "target": "docs/adr/README.md"
+    },
+    {
+      "digest": "sha256:edd11e633210103b7c4fdc164d30c62b0bccdfb5350a2c4e63dae836349c3378",
+      "owner": "component:documentation",
+      "regeneration": "replace",
+      "target": "docs/index.md"
+    },
+    {
+      "digest": "sha256:23578d11f2d63e9e57c551d458e017387ef8ce73462c8033a26b98797c27f91c",
+      "owner": "component:documentation",
+      "regeneration": "replace",
+      "target": "docs/reference.md"
+    },
+    {
+      "digest": "sha256:21774b0dacba21a993afbae71ced70f5b3234c18b91deecc59a4de4c8ff00016",
+      "owner": "component:documentation",
+      "regeneration": "replace",
+      "target": "mkdocs.yml"
+    },
+    {
+      "digest": "sha256:0cebaaf80393bfe603d46727a424af57cb3497e888fb85fe52f0fc84b28d11aa",
+      "owner": "foundation",
+      "regeneration": "replace",
+      "target": "pyproject.toml"
+    },
+    {
+      "digest": "sha256:6f885c81d2c9b69da67a95adb979a9cf8485e556bafbb2e8c66f504088ed3c21",
+      "owner": "component:pyright",
+      "regeneration": "replace",
+      "target": "pyrightconfig.json"
+    },
+    {
+      "digest": "sha256:073ddec6eb368987945b2c83d99163b7c315eb6a5ff241812dd1e1b563f497c1",
+      "owner": "component:renovate",
+      "regeneration": "replace",
+      "target": "renovate.json"
+    },
+    {
+      "digest": "sha256:e317ec27dbd7472a81eeeb6e0e24e42cc08a62ab9d514de01e2f3e5897b6b99f",
+      "owner": "component:jupyter",
+      "regeneration": "replace",
+      "target": "scripts/check_notebooks.py"
+    },
+    {
+      "digest": "sha256:ceb307b8b394906f1670d46b963a27619b25a6e7002cd8e89ecfae6e73a7448f",
+      "owner": "component:library",
+      "regeneration": "replace",
+      "target": "src/flowgram/__init__.py"
+    },
+    {
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "owner": "component:library",
+      "regeneration": "replace",
+      "target": "src/flowgram/py.typed"
+    },
+    {
+      "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "owner": "component:library",
+      "regeneration": "replace",
+      "target": "tests/__init__.py"
+    },
+    {
+      "digest": "sha256:84e51b9c87ba7247c04c62eba6afc5400d5e26ed2b0e5fdef616e56642f05d89",
+      "owner": "component:library",
+      "regeneration": "replace",
+      "target": "tests/test_smoke.py"
+    }
+  ],
+  "protocols": {
+    "component_manifest": [
+      1,
+      2,
+      3
+    ],
+    "projectspec": 1
+  },
+  "provider": {
+    "distribution": "forge-template",
+    "version": "0.7.0"
+  },
+  "spec": {
+    "component_options": {
+      "coverage": {
+        "fail_under": 90
+      },
+      "documentation": {
+        "site_name": "FlowGram"
+      },
+      "github": {
+        "organisation": "Sandsy09"
+      },
+      "library": {
+        "initial_version": "0.1.0",
+        "packaging_mode": "uv-build-static"
+      }
+    },
+    "components": {
+      "archetype": "library",
+      "capabilities": [
+        "changelog",
+        "coverage",
+        "documentation",
+        "dotenv-example",
+        "jupyter",
+        "pre-commit",
+        "pyright",
+        "renovate"
+      ],
+      "platforms": [
+        "github"
+      ]
+    },
+    "project": {
+      "authors": [],
+      "description": "Reuable components, modular diagram builder",
+      "licence": "mit",
+      "name": "flowgram",
+      "package_name": "flowgram",
+      "repository_name": "flowgram"
+    },
+    "protocol_version": 1,
+    "provenance": {
+      "policies": [],
+      "profile": null
+    },
+    "python": {
+      "development": "3.13",
+      "minimum": "3.11"
+    }
+  }
+}
