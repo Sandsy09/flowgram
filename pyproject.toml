@@ -9,7 +9,10 @@ license-files = ["LICENSE"]
 classifiers = [
     "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+    "matplotlib>=3.8",
+    "pydantic>=2.7",
+]
 
 [project.urls]
 Repository = "https://github.com/Sandsy09/flowgram"

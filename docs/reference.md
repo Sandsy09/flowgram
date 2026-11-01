@@ -1,3 +1,13 @@
 # API Reference
 
-::: flowgram
+## Diagram
+
+::: flowgram.diagram
+
+## Components
+
+::: flowgram.components
+
+## Theme
+
+::: flowgram.theme

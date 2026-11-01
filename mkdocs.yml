@@ -36,10 +36,15 @@ plugins:
 
 nav:
   - Home: index.md
+  - Design:
+      - MVP spec: design/spec.md
+      - Roadmap: design/roadmap.md
   - API Reference: reference.md
   - Decisions:
       - Overview: adr/README.md
       - 0001 Record architecture decisions: adr/0001-record-architecture-decisions.md
+      - 0002 Frozen Pydantic spec models: adr/0002-frozen-pydantic-spec-models.md
+      - 0003 Abstract units and layout-only containers: adr/0003-abstract-units-and-layout-only-containers.md
 
 markdown_extensions:
   - admonition
