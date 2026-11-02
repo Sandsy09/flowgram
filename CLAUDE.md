@@ -10,16 +10,16 @@ milestones and release gates. Decisions are recorded in `docs/adr/`.
 
 ## Status
 
-Milestones 1 (spec models and validation) and 2 (layout engine) are done. **Next:
-milestone 3, the first render.** Rendering does not exist yet, so the package has no
-`render()`, `draw()` or `save()` methods.
+Milestones 1 to 3 (spec models, layout engine, first render) are done. **Next:
+milestone 4, edges.** `Diagram.render()` and `Diagram.draw(ax)` draw boxes and the
+title; edges are not drawn yet, and there is no `save()`.
 
 | # | Milestone | State |
 | --- | --- | --- |
 | 1 | Foundation: models and validation | Done |
 | 2 | Layout engine: text measuring, Row, Column, Spacer, `uniform`, positions | Done |
-| 3 | First render: boxes, `render()`, `draw(ax)` | Next |
-| 4 | Edges: anchors, side choice, straight and elbow routing, labels | Not started |
+| 3 | First render: boxes, `render()`, `draw(ax)` | Done |
+| 4 | Edges: anchors, side choice, straight and elbow routing, labels | Next |
 | 5 | Export and loading: `save()`, Jupyter display, YAML extra | Not started |
 | 6 | Release 0.1.0: gallery, README, API docs, PyPI | Not started |
 
@@ -34,6 +34,7 @@ src/flowgram/components.py  Side, Box, Spacer, Row, Column, Edge, iter_boxes
 src/flowgram/diagram.py     Diagram root and cross-component validation
 src/flowgram/_text.py       Measure box text in units on an off-screen Agg canvas
 src/flowgram/layout.py      Rect, Layout, box and container sizing, positions, layout()
+src/flowgram/render.py      Render settings, frame and title band, boxes, render(), draw()
 tests/                      One test module per source module
 docs/design/                Spec and roadmap
 docs/adr/                   Architecture decision records
@@ -96,18 +97,22 @@ uv run poe docs:build              # docs, warnings are errors
 several edges along one side, auto-layout, a CLI, non-matplotlib backends. These are
 planned for later releases in the roadmap. Do not start them early.
 
-## Next task: milestone 3, first render
+## Next task: milestone 4, edges
 
-Done when a one-row diagram matches its stored snapshot. The steps are issues #9 to #13
-in milestone 3. #9 has no blockers and #10 needs only the layout engine.
+Done when a branching diagram's snapshot shows every edge on the correct sides. The
+steps are issues #14 to #20 in milestone 4. #14 needs only the layout engine.
 
-1. Snapshot harness (#9): opt-in `snapshot` tests, Linux only, baselines in
-   `tests/snapshots/`, run by the Snapshots workflow, which uploads the images when a
-   test fails.
-2. Figure builder (#10): a `Figure` built directly (no pyplot), sized from
-   `layout(diagram)` plus `Diagram.padding`, times `scale`, with a deterministic rc
-   context.
-3. Draw boxes (#11): rounded patches with role colours and per-box overrides, and the
-   eyebrow, label and subtitle placed from the `TextBlock` tiers of `measure_text`.
-4. Title band (#12): title and subtitle above the content, left-aligned by default.
-5. `Diagram.render()` and `Diagram.draw(ax)` (#13), gated by a one-row snapshot.
+1. Anchors (#14): the four side midpoints of each box, from `Rect.side_midpoint`.
+2. Side choice (#15): the dominant axis between box centres picks `exit` and `entry`
+   when they are `None`; explicit sides are respected.
+3. Routing (#16): straight when the anchors line up within a small tolerance, otherwise
+   an orthogonal elbow with one midpoint bend; `routing` overrides the choice. Pure
+   geometry, tested without drawing.
+4. Draw edges (#17): line styles, arrowheads (`end`, `both`, `none`), colour and width
+   overrides, at `render.Z_EDGE` under the boxes.
+5. Edge labels (#18): centred on the longest segment with a background-coloured pad, at
+   `render.Z_EDGE_LABEL`.
+6. Gate (#19): a branching diagram snapshot; document the known limits.
+7. API check (#20): rebuild the reference ML flowchart in about 30 lines and file API
+   fixes. The reference file is the user's work material: keep it out of the repo and
+   issues.

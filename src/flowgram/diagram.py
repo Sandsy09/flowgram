@@ -2,13 +2,17 @@
 
 from collections import Counter
 from difflib import get_close_matches
-from typing import Annotated, Self
+from typing import TYPE_CHECKING, Annotated, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
 from flowgram._base import FrozenSeq, NonNegative, Positive, Spec
 from flowgram.components import Box, Column, Edge, Row, iter_boxes
 from flowgram.theme import Theme
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
 
 def _describe(box: Box) -> str:
@@ -41,6 +45,36 @@ class Diagram(Spec):
     subtitle: str | None = None
     scale: Positive = 1.0
     padding: NonNegative = 0.5
+
+    def render(self) -> "Figure":
+        """Draw the diagram into a new matplotlib figure.
+
+        The figure is sized to fit the diagram, at ``scale`` inches per unit,
+        and is built without pyplot. In Jupyter it displays as a cell's
+        result. Save it with ``figure.savefig(path)``.
+
+        Returns:
+            A new figure holding the whole diagram.
+        """
+        # Imported here: the renderer imports this module.
+        from flowgram.render import render
+
+        return render(self)
+
+    def draw(self, ax: "Axes") -> None:
+        """Draw the diagram into an existing matplotlib axes.
+
+        Use this to place a diagram in a subplot next to other plots. The
+        figure is not resized. The axes is set to show the whole diagram with
+        equal aspect and no axis. Text stays at its point size, so it fits
+        its boxes exactly only when the axes is ``scale`` inches per unit.
+
+        Args:
+            ax: The axes to draw into.
+        """
+        from flowgram.render import draw
+
+        draw(self, ax)
 
     def boxes(self) -> tuple[Box, ...]:
         """Return every box in layout order.

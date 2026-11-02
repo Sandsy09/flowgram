@@ -15,6 +15,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from matplotlib import rc_context
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import FancyBboxPatch
@@ -32,6 +33,7 @@ from flowgram._text import (
 from flowgram.components import Box, Child, Column, Row
 from flowgram.diagram import Diagram
 from flowgram.layout import Layout, NodePath, Rect
+from flowgram.layout import layout as compute_layout
 from flowgram.theme import Theme
 
 if TYPE_CHECKING:
@@ -509,3 +511,48 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
         )
         for line in band.lines
     )
+
+
+def render(diagram: Diagram) -> Figure:
+    """Lay out and draw a diagram into a new figure.
+
+    The figure is sized to the content, the title band and the padding, at
+    ``scale`` inches per unit, and drawn with ``rc_params(theme)``. It is
+    built without pyplot, so it is not shown or tracked by pyplot. Display
+    it in Jupyter as the cell's result, or save it with ``savefig``.
+
+    Args:
+        diagram: The diagram to draw.
+
+    Returns:
+        A new figure holding the whole diagram.
+    """
+    result = compute_layout(diagram)
+    view = frame(diagram, result)
+    with rc_context(rc_params(diagram.theme)):
+        figure, axes = new_figure(diagram, view)
+        draw_boxes(axes, diagram, result)
+        draw_title(axes, diagram, view)
+    return figure
+
+
+def draw(diagram: Diagram, axes: Axes) -> None:
+    """Draw a diagram into an existing axes, such as one subplot of a figure.
+
+    The figure is not created or resized. The axes is set to show the whole
+    diagram with equal aspect and its axis turned off. Font sizes stay in
+    points, so text fits its boxes exactly only when the axes is
+    ``scale`` inches per unit, as in ``render``. The theme background is not
+    drawn, because the figure belongs to the caller.
+
+    Args:
+        diagram: The diagram to draw.
+        axes: Where to draw it.
+    """
+    result = compute_layout(diagram)
+    view = frame(diagram, result)
+    with rc_context(rc_params(diagram.theme)):
+        draw_boxes(axes, diagram, result)
+        draw_title(axes, diagram, view)
+    setup_axes(axes, view)
+    axes.set_aspect("equal")
