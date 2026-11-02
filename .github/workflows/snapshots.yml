@@ -1,0 +1,66 @@
+name: Snapshots
+
+# Image snapshot tests, Linux only, with the locked dependencies so rendering
+# matches the stored baselines. On failure the expected, actual and diff
+# images are uploaded. Run it by hand with "update" to get fresh baselines as
+# an artifact, then commit them under tests/snapshots/.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      update:
+        description: Write new baselines and upload them instead of comparing
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.12.0"
+
+jobs:
+  snapshots:
+    name: Snapshots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          python-version: "3.13"
+
+      - run: uv sync --locked
+
+      - name: Compare snapshots
+        if: ${{ !inputs.update }}
+        run: uv run poe test:snapshots
+
+      - name: Upload failed snapshots
+        if: ${{ failure() && !inputs.update }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: snapshot-failures
+          path: build/snapshot-failures/
+          if-no-files-found: ignore
+
+      - name: Write new baselines
+        if: ${{ inputs.update }}
+        run: uv run poe snapshots:update
+
+      - name: Upload new baselines
+        if: ${{ inputs.update }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: snapshot-baselines
+          path: tests/snapshots/
+          if-no-files-found: error
