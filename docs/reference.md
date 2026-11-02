@@ -15,3 +15,7 @@
 ## Layout
 
 ::: flowgram.layout
+
+## Render
+
+::: flowgram.render
