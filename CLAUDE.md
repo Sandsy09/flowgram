@@ -10,17 +10,17 @@ milestones and release gates. Decisions are recorded in `docs/adr/`.
 
 ## Status
 
-Milestones 1 to 3 (spec models, layout engine, first render) are done. **Next:
-milestone 4, edges.** `Diagram.render()` and `Diagram.draw(ax)` draw boxes and the
-title; edges are not drawn yet, and there is no `save()`.
+Milestones 1 to 4 (spec models, layout engine, first render, edges) are done.
+**Next: milestone 5, export and loading.** `Diagram.render()` and `Diagram.draw(ax)`
+draw boxes, edges and the title; there is no `save()` or loading yet.
 
 | # | Milestone | State |
 | --- | --- | --- |
 | 1 | Foundation: models and validation | Done |
 | 2 | Layout engine: text measuring, Row, Column, Spacer, `uniform`, positions | Done |
 | 3 | First render: boxes, `render()`, `draw(ax)` | Done |
-| 4 | Edges: anchors, side choice, straight and elbow routing, labels | Next |
-| 5 | Export and loading: `save()`, Jupyter display, YAML extra | Not started |
+| 4 | Edges: anchors, side choice, straight and elbow routing, labels | Done |
+| 5 | Export and loading: `save()`, Jupyter display, YAML extra | Next |
 | 6 | Release 0.1.0: gallery, README, API docs, PyPI | Not started |
 
 Update this table when a milestone lands.
@@ -34,7 +34,8 @@ src/flowgram/components.py  Side, Box, Spacer, Row, Column, Edge, iter_boxes
 src/flowgram/diagram.py     Diagram root and cross-component validation
 src/flowgram/_text.py       Measure box text in units on an off-screen Agg canvas
 src/flowgram/layout.py      Rect, Layout, box and container sizing, positions, layout()
-src/flowgram/render.py      Render settings, frame and title band, boxes, render(), draw()
+src/flowgram/edges.py       Anchors, side choice, straight and elbow routing, label point
+src/flowgram/render.py      Render settings, frame and title band, boxes, edges, render(), draw()
 tests/                      One test module per source module
 docs/design/                Spec and roadmap
 docs/adr/                   Architecture decision records

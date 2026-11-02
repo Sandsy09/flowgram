@@ -19,6 +19,8 @@ import pytest
 from matplotlib.figure import Figure
 from matplotlib.testing.compare import compare_images
 
+from flowgram import Box, Column, Diagram, Edge, Row
+
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 """Where baseline images are stored, one PNG per snapshot name."""
 
@@ -108,3 +110,30 @@ def snapshot(tmp_path: Path) -> SnapshotCheck:
             )
 
     return check
+
+
+def spec_pipeline() -> Diagram:
+    """The spec's example: a branching pipeline with a dashed and a labelled edge."""
+    return Diagram(
+        title="Model training pipeline",
+        root=Row(
+            gap=2,
+            children=[
+                Box(id="data", label="Raw data", role="muted"),
+                Column(
+                    gap=1,
+                    children=[
+                        Box(id="clean", label="Clean", subtitle="impute, clip"),
+                        Box(id="feats", label="Features"),
+                    ],
+                ),
+                Box(id="model", label="Model", role="accent"),
+            ],
+        ),
+        edges=[
+            Edge(src="data", dst="clean"),
+            Edge(src="data", dst="feats"),
+            Edge(src="clean", dst="model", label="train"),
+            Edge(src="feats", dst="model", style="dashed"),
+        ],
+    )
