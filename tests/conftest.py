@@ -10,8 +10,8 @@ to write the current images as the new baselines instead of comparing.
 """
 
 import os
+import platform
 import shutil
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -39,7 +39,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     ``FLOWGRAM_SNAPSHOTS_ANY_OS=1`` runs them anyway, which is useful for
     checking the harness itself; expect differences against Linux baselines.
     """
-    if sys.platform.startswith("linux") or os.environ.get("FLOWGRAM_SNAPSHOTS_ANY_OS"):
+    if platform.system() == "Linux" or os.environ.get("FLOWGRAM_SNAPSHOTS_ANY_OS"):
         return
     skip = pytest.mark.skip(
         reason="snapshot baselines are rendered on Linux; text rasterises "
