@@ -87,9 +87,11 @@ class _Container(Spec):
             theme's gap. No gap is added next to a Spacer.
         align: How children line up on the cross axis.
         padding: Space around the children, in units.
-        uniform: When true, every direct Box child without a fixed width or
-            height is sized to the largest width and height in the group.
-            Nested containers and spacers are unaffected.
+        uniform: When true, direct Box children share one size: every width
+            that is not fixed becomes the largest such width in the group,
+            and likewise for heights. Fixed widths and heights keep their
+            value and do not count towards the largest. Nested containers and
+            spacers are unaffected.
     """
 
     children: FrozenSeq["Child"] = Field(min_length=1)

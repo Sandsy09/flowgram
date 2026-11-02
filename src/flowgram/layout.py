@@ -258,6 +258,39 @@ def _size_child(
     return size
 
 
+def _apply_uniform(
+    node: Container,
+    path: NodePath,
+    children: list[Size],
+    sizes: dict[NodePath, Size],
+) -> list[Size]:
+    """Give every automatic dimension of a direct Box child the group's largest.
+
+    Only dimensions without a fixed value count towards the largest and take
+    it, so a fixed width or height is never changed and never stretches the
+    others. Spacers and nested containers are left alone.
+    """
+    boxes = [
+        (index, child)
+        for index, child in enumerate(node.children)
+        if isinstance(child, Box)
+    ]
+    auto_widths = [children[i][0] for i, box in boxes if box.width is None]
+    auto_heights = [children[i][1] for i, box in boxes if box.height is None]
+    widest = max(auto_widths, default=0.0)
+    tallest = max(auto_heights, default=0.0)
+    result = list(children)
+    for index, box in boxes:
+        width, height = result[index]
+        size = (
+            widest if box.width is None else width,
+            tallest if box.height is None else height,
+        )
+        result[index] = size
+        sizes[(*path, index)] = size
+    return result
+
+
 def _size_container(
     node: Container,
     path: NodePath,
@@ -269,6 +302,8 @@ def _size_container(
         _size_child(child, (*path, index), node, theme, scale, sizes)
         for index, child in enumerate(node.children)
     ]
+    if node.uniform:
+        children = _apply_uniform(node, path, children, sizes)
     horizontal = isinstance(node, Row)
     main = [w if horizontal else h for w, h in children]
     cross = [h if horizontal else w for w, h in children]

@@ -7,7 +7,7 @@ import pytest
 from flowgram import Box, Column, Row, Spacer, Theme
 from flowgram._text import measure_text
 from flowgram.components import Side
-from flowgram.layout import Layout, NodePath, Rect, box_size, node_sizes
+from flowgram.layout import Layout, NodePath, Rect, Size, box_size, node_sizes
 
 THEME = Theme.light()
 LONG = "A label long enough to need more than the minimum width"
@@ -166,6 +166,10 @@ class TestBoxSize:
         assert at_two == pytest.approx(at_one / 2)
 
 
+def _at(sizes: dict[NodePath, Size], *paths: NodePath) -> list[Size]:
+    return [sizes[path] for path in paths]
+
+
 def _fixed(width: float, height: float) -> Box:
     return Box(label="x", width=width, height=height)
 
@@ -229,3 +233,50 @@ class TestNodeSizes:
         row = Row(gap=1, children=[Box(label=LONG), Box(label="A")])
         sizes = node_sizes(row, THEME, 1.0)
         assert sizes[()][0] == pytest.approx(sizes[(0,)][0] + 1 + sizes[(1,)][0])
+
+
+class TestUniform:
+    def test_boxes_take_the_largest_width_and_height(self) -> None:
+        row = Row(gap=0, uniform=True, children=[Box(label=LONG), Box(label="A\nB")])
+        sizes = node_sizes(row, THEME, 1.0)
+        plain = node_sizes(row.model_copy(update={"uniform": False}), THEME, 1.0)
+        widest = max(plain[(0,)][0], plain[(1,)][0])
+        tallest = max(plain[(0,)][1], plain[(1,)][1])
+        assert sizes[(0,)] == sizes[(1,)] == (widest, tallest)
+        assert sizes[()] == (2 * widest, tallest)
+
+    def test_without_uniform_boxes_keep_their_own_size(self) -> None:
+        sizes = node_sizes(Row(children=[Box(label=LONG), Box(label="A")]), THEME, 1.0)
+        assert sizes[(0,)] != sizes[(1,)]
+
+    def test_fixed_boxes_neither_count_nor_change(self) -> None:
+        big = _fixed(9, 9)
+        row = Row(uniform=True, children=[Box(label=LONG), big, Box(label="A")])
+        sizes = node_sizes(row, THEME, 1.0)
+        fixed, first, last = _at(sizes, (1,), (0,), (2,))
+        assert first == last
+        assert first[0] < 9
+        assert fixed == (9, 9)
+
+    def test_one_fixed_dimension_takes_the_uniform_other(self) -> None:
+        narrow = Box(label="A", width=0.5)
+        row = Row(uniform=True, children=[Box(label="A\nB\nC"), narrow])
+        tall_height = node_sizes(row, THEME, 1.0)[(0,)][1]
+        assert node_sizes(row, THEME, 1.0)[(1,)] == (0.5, tall_height)
+
+    def test_spacers_and_nested_containers_are_unaffected(self) -> None:
+        inner = Column(children=[_fixed(0.2, 0.2)])
+        row = Row(uniform=True, children=[Box(label=LONG), Spacer(size=1), inner])
+        sizes = node_sizes(row, THEME, 1.0)
+        assert _at(sizes, (1,), (2,), (2, 0)) == [(1, 0), (0.2, 0.2), (0.2, 0.2)]
+
+    def test_uniform_applies_only_to_direct_children(self) -> None:
+        inner = Row(children=[Box(label="A"), Box(label=LONG)])
+        outer = Column(uniform=True, children=[inner, Box(label="B")])
+        sizes = node_sizes(outer, THEME, 1.0)
+        assert sizes[(0, 0)] != sizes[(0, 1)]
+
+    def test_all_fixed_group_is_unchanged(self) -> None:
+        row = Row(uniform=True, children=[_fixed(1, 2), _fixed(3, 1)])
+        sizes = node_sizes(row, THEME, 1.0)
+        assert (sizes[(0,)], sizes[(1,)]) == ((1, 2), (3, 1))
