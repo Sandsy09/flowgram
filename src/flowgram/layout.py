@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 
 from flowgram._text import measure_text
-from flowgram.components import Box, Child, Column, Row, Side, Spacer
+from flowgram.components import Align, Box, Child, Column, Row, Side, Spacer
 from flowgram.theme import Theme
 
 NodePath = tuple[int, ...]
@@ -333,3 +333,64 @@ def node_sizes(root: Container, theme: Theme, scale: float) -> dict[NodePath, Si
     sizes: dict[NodePath, Size] = {}
     sizes[()] = _size_container(root, (), theme, scale, sizes)
     return sizes
+
+
+def _cross_offset(align: Align, space: float, size: float) -> float:
+    if align == "start":
+        return 0.0
+    if align == "end":
+        return space - size
+    return (space - size) / 2
+
+
+def _place(
+    node: Container,
+    path: NodePath,
+    rect: Rect,
+    sizes: Mapping[NodePath, Size],
+    theme: Theme,
+    rects: dict[NodePath, Rect],
+) -> None:
+    horizontal = isinstance(node, Row)
+    pad = node.padding
+    main = (rect.x if horizontal else rect.y) + pad
+    cross_start = (rect.y if horizontal else rect.x) + pad
+    cross_space = (rect.height if horizontal else rect.width) - 2 * pad
+    gaps = [0.0, *_gaps(node, theme)]
+    for index, child in enumerate(node.children):
+        child_path = (*path, index)
+        width, height = sizes[child_path]
+        main += gaps[index]
+        child_main, child_cross = (width, height) if horizontal else (height, width)
+        cross = cross_start + _cross_offset(node.align, cross_space, child_cross)
+        x, y = (main, cross) if horizontal else (cross, main)
+        child_rect = Rect(x, y, width, height)
+        rects[child_path] = child_rect
+        if isinstance(child, Row | Column):
+            _place(child, child_path, child_rect, sizes, theme, rects)
+        main += child_main
+
+
+def node_rects(
+    root: Container, sizes: Mapping[NodePath, Size], theme: Theme
+) -> dict[NodePath, Rect]:
+    """Position every node top-down, starting with the root at the origin.
+
+    Children are placed along their container's main axis from its padded
+    edge, with the same gaps that sizing used. On the cross axis each child
+    is aligned within the padded space by the container's ``align``:
+    ``"start"`` (top or left), ``"center"`` or ``"end"`` (bottom or right).
+    Diagram padding and the title band are added by the renderer, not here.
+
+    Args:
+        root: The top-level Row or Column.
+        sizes: Every node's size, as returned by ``node_sizes``.
+        theme: Supplies the default gap.
+
+    Returns:
+        A ``Rect`` for every node, keyed by node path.
+    """
+    width, height = sizes[()]
+    rects: dict[NodePath, Rect] = {(): Rect(0.0, 0.0, width, height)}
+    _place(root, (), rects[()], sizes, theme, rects)
+    return rects
