@@ -4,10 +4,10 @@ import dataclasses
 
 import pytest
 
-from flowgram import Box, Theme
+from flowgram import Box, Column, Row, Spacer, Theme
 from flowgram._text import measure_text
 from flowgram.components import Side
-from flowgram.layout import Layout, NodePath, Rect, box_size
+from flowgram.layout import Layout, NodePath, Rect, box_size, node_sizes
 
 THEME = Theme.light()
 LONG = "A label long enough to need more than the minimum width"
@@ -164,3 +164,68 @@ class TestBoxSize:
         at_one = box_size(box, THEME, 1.0)[0] - pad
         at_two = box_size(box, THEME, 2.0)[0] - pad
         assert at_two == pytest.approx(at_one / 2)
+
+
+def _fixed(width: float, height: float) -> Box:
+    return Box(label="x", width=width, height=height)
+
+
+class TestNodeSizes:
+    def test_single_child_row_is_the_child_plus_padding(self) -> None:
+        sizes = node_sizes(Row(padding=0.5, children=[_fixed(2, 1)]), THEME, 1.0)
+        assert sizes == {(0,): (2, 1), (): (3, 2)}
+
+    def test_row_adds_widths_and_gaps_and_takes_the_tallest(self) -> None:
+        row = Row(gap=0.5, children=[_fixed(1, 1), _fixed(2, 3), _fixed(1, 2)])
+        assert node_sizes(row, THEME, 1.0)[()] == (5, 3)
+
+    def test_column_is_the_transpose(self) -> None:
+        column = Column(gap=0.5, children=[_fixed(1, 1), _fixed(3, 2), _fixed(2, 1)])
+        assert node_sizes(column, THEME, 1.0)[()] == (3, 5)
+
+    def test_gap_none_uses_the_theme_gap(self) -> None:
+        wide = THEME.model_copy(update={"gap": 2.5})
+        row = Row(children=[_fixed(1, 1), _fixed(1, 1)])
+        assert node_sizes(row, wide, 1.0)[()] == (4.5, 1)
+
+    def test_explicit_zero_gap_overrides_the_theme(self) -> None:
+        row = Row(gap=0, children=[_fixed(1, 1), _fixed(1, 1)])
+        assert node_sizes(row, THEME, 1.0)[()] == (2, 1)
+
+    def test_spacer_adds_exactly_its_size_with_no_gaps(self) -> None:
+        row = Row(gap=2, children=[_fixed(1, 1), Spacer(size=1), _fixed(2, 1)])
+        sizes = node_sizes(row, THEME, 1.0)
+        assert (sizes[()], sizes[(1,)]) == ((4, 1), (1, 0))
+
+    def test_spacer_in_a_column_adds_height(self) -> None:
+        column = Column(gap=2, children=[_fixed(1, 1), Spacer(size=3)])
+        sizes = node_sizes(column, THEME, 1.0)
+        assert (sizes[(1,)], sizes[()]) == ((0, 3), (1, 4))
+
+    def test_adjacent_spacers_have_no_gap_between_them(self) -> None:
+        row = Row(gap=1, children=[Spacer(size=1), Spacer(size=2), _fixed(1, 1)])
+        assert node_sizes(row, THEME, 1.0)[()] == (4, 1)
+
+    def test_spacers_only_container_has_no_cross_size(self) -> None:
+        assert node_sizes(Row(children=[Spacer(size=2)]), THEME, 1.0)[()] == (2, 0)
+
+    def test_padding_applies_on_all_four_sides(self) -> None:
+        column = Column(padding=1, gap=0, children=[_fixed(2, 1), _fixed(2, 1)])
+        assert node_sizes(column, THEME, 1.0)[()] == (4, 4)
+
+    def test_three_levels_of_nesting(self) -> None:
+        inner = Row(gap=0.5, children=[_fixed(1, 1), _fixed(1, 2)])
+        middle = Column(gap=1, padding=0.25, children=[inner, _fixed(3, 1)])
+        outer = Row(gap=2, padding=0.5, children=[_fixed(1, 1), middle])
+        sizes = node_sizes(outer, THEME, 1.0)
+        assert (sizes[(1, 0)], sizes[(1,)], sizes[()]) == (
+            (2.5, 2),
+            (3.5, 4.5),
+            (7.5, 5.5),
+        )
+        assert set(sizes) == {(), (0,), (1,), (1, 0), (1, 0, 0), (1, 0, 1), (1, 1)}
+
+    def test_measured_boxes_feed_the_container(self) -> None:
+        row = Row(gap=1, children=[Box(label=LONG), Box(label="A")])
+        sizes = node_sizes(row, THEME, 1.0)
+        assert sizes[()][0] == pytest.approx(sizes[(0,)][0] + 1 + sizes[(1,)][0])

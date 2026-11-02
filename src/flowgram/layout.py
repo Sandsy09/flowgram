@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 
 from flowgram._text import measure_text
-from flowgram.components import Box, Side
+from flowgram.components import Box, Child, Column, Row, Side, Spacer
 from flowgram.theme import Theme
 
 NodePath = tuple[int, ...]
@@ -213,3 +213,88 @@ def box_size(box: Box, theme: Theme, scale: float) -> Size:
     if height is None:
         height = max(text.height + pad, theme.min_box_height)
     return (width, height)
+
+
+Container = Row | Column
+"""A node that arranges children: the root of a diagram is always one."""
+
+
+def _gap(node: Container, theme: Theme) -> float:
+    return theme.gap if node.gap is None else node.gap
+
+
+def _gaps(node: Container, theme: Theme) -> list[float]:
+    """Return the space before each child after the first.
+
+    A gap sits between two adjacent children only when neither is a Spacer,
+    so a Spacer adds exactly its own size.
+    """
+    gap = _gap(node, theme)
+    pairs = zip(node.children, node.children[1:], strict=False)
+    return [
+        0.0 if isinstance(a, Spacer) or isinstance(b, Spacer) else gap for a, b in pairs
+    ]
+
+
+def _spacer_size(spacer: Spacer, parent: Container) -> Size:
+    return (spacer.size, 0.0) if isinstance(parent, Row) else (0.0, spacer.size)
+
+
+def _size_child(
+    node: Child,
+    path: NodePath,
+    parent: Container,
+    theme: Theme,
+    scale: float,
+    sizes: dict[NodePath, Size],
+) -> Size:
+    if isinstance(node, Box):
+        size = box_size(node, theme, scale)
+    elif isinstance(node, Spacer):
+        size = _spacer_size(node, parent)
+    else:
+        size = _size_container(node, path, theme, scale, sizes)
+    sizes[path] = size
+    return size
+
+
+def _size_container(
+    node: Container,
+    path: NodePath,
+    theme: Theme,
+    scale: float,
+    sizes: dict[NodePath, Size],
+) -> Size:
+    children = [
+        _size_child(child, (*path, index), node, theme, scale, sizes)
+        for index, child in enumerate(node.children)
+    ]
+    horizontal = isinstance(node, Row)
+    main = [w if horizontal else h for w, h in children]
+    cross = [h if horizontal else w for w, h in children]
+    pad = 2 * node.padding
+    main_total = sum(main) + sum(_gaps(node, theme)) + pad
+    cross_total = max(cross) + pad
+    return (main_total, cross_total) if horizontal else (cross_total, main_total)
+
+
+def node_sizes(root: Container, theme: Theme, scale: float) -> dict[NodePath, Size]:
+    """Return the size of every node in a layout tree, bottom-up.
+
+    A Row is as wide as its children plus the gaps between them plus
+    ``padding`` on both sides, and as tall as its tallest child plus
+    ``padding`` above and below. A Column is the transpose. A ``gap`` of
+    ``None`` uses ``theme.gap``. A Spacer adds its ``size`` along its parent's
+    main axis, has no size across it, and has no gap on either side.
+
+    Args:
+        root: The top-level Row or Column.
+        theme: Supplies fonts, padding, minimum box sizes and the default gap.
+        scale: Inches per unit, as in ``Diagram.scale``.
+
+    Returns:
+        ``(width, height)`` in units for every node, keyed by node path.
+    """
+    sizes: dict[NodePath, Size] = {}
+    sizes[()] = _size_container(root, (), theme, scale, sizes)
+    return sizes

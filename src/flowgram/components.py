@@ -67,7 +67,9 @@ class Spacer(Spec):
 
     Attributes:
         size: Space along the parent's main axis, in units. A Spacer in a
-            Row adds width; in a Column it adds height.
+            Row adds width; in a Column it adds height. The parent's ``gap``
+            is not added on either side of a Spacer, so it adds exactly
+            ``size``.
     """
 
     kind: Literal["spacer"] = "spacer"
@@ -81,7 +83,8 @@ class _Container(Spec):
 
     Attributes:
         children: One or more boxes, spacers or nested containers.
-        gap: Space between children in units, or ``None`` for the theme's gap.
+        gap: Space between adjacent children in units, or ``None`` for the
+            theme's gap. No gap is added next to a Spacer.
         align: How children line up on the cross axis.
         padding: Space around the children, in units.
         uniform: When true, every direct Box child without a fixed width or
