@@ -13,13 +13,18 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from flowgram.components import Side
+from flowgram._text import measure_text
+from flowgram.components import Box, Side
+from flowgram.theme import Theme
 
 NodePath = tuple[int, ...]
 """Child indices from the root to a node; the root is ``()``."""
 
 Point = tuple[float, float]
 """An ``(x, y)`` position in units, origin top left, y down."""
+
+Size = tuple[float, float]
+"""A ``(width, height)`` in units."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,3 +181,35 @@ class Layout:
                 msg = f"no box has id {box_id!r}; no box in the layout has an id"
             raise KeyError(msg) from None
         return self.rects[path]
+
+
+def box_size(box: Box, theme: Theme, scale: float) -> Size:
+    """Return the size of a box in units.
+
+    An automatic dimension is the text's size plus ``theme.text_padding`` on
+    each side, but never less than ``theme.min_box_width`` or
+    ``theme.min_box_height``. A fixed ``width`` or ``height`` on the box is
+    used as given, each independently of the other, even when the text does
+    not fit.
+
+    Args:
+        box: The box to size.
+        theme: Supplies the fonts, padding and minimum sizes.
+        scale: Inches per unit, as in ``Diagram.scale``.
+
+    Returns:
+        The box's ``(width, height)``.
+    """
+    if box.width is not None and box.height is not None:
+        return (box.width, box.height)
+    text = measure_text(
+        box.label, theme, scale, subtitle=box.subtitle, eyebrow=box.eyebrow
+    )
+    pad = 2 * theme.text_padding
+    width = box.width
+    if width is None:
+        width = max(text.width + pad, theme.min_box_width)
+    height = box.height
+    if height is None:
+        height = max(text.height + pad, theme.min_box_height)
+    return (width, height)
