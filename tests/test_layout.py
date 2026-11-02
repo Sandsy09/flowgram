@@ -4,8 +4,15 @@ import dataclasses
 
 import pytest
 
+from flowgram import Box, Theme
+from flowgram._text import measure_text
 from flowgram.components import Side
-from flowgram.layout import Layout, NodePath, Rect
+from flowgram.layout import Layout, NodePath, Rect, box_size
+
+THEME = Theme.light()
+LONG = "A label long enough to need more than the minimum width"
+# Minimums tall enough that one line of default text never reaches them.
+ROOMY = THEME.model_copy(update={"min_box_height": 1.5})
 
 
 def _layout() -> Layout:
@@ -108,3 +115,52 @@ class TestLayout:
     def test_equal_layouts_compare_equal(self) -> None:
         assert _layout() == _layout()
         assert _layout() != dataclasses.replace(_layout(), width=11)
+
+
+class TestBoxSize:
+    def test_text_plus_padding_on_each_side(self) -> None:
+        text = measure_text(LONG, THEME, 1.0, subtitle="two\nlines", eyebrow="STEP")
+        box = Box(label=LONG, subtitle="two\nlines", eyebrow="STEP")
+        pad = 2 * THEME.text_padding
+        assert box_size(box, THEME, 1.0) == pytest.approx(
+            (text.width + pad, text.height + pad)
+        )
+
+    def test_short_text_is_clamped_to_the_minimum(self) -> None:
+        assert box_size(Box(label="A"), ROOMY, 1.0) == (
+            ROOMY.min_box_width,
+            ROOMY.min_box_height,
+        )
+
+    def test_width_and_height_clamp_independently(self) -> None:
+        width, height = box_size(Box(label=LONG), ROOMY, 1.0)
+        assert width > ROOMY.min_box_width
+        assert height == ROOMY.min_box_height
+
+    def test_fixed_width_wins_and_height_stays_automatic(self) -> None:
+        tall = Box(label="A\nB\nC\nD", width=0.5)
+        width, height = box_size(tall, THEME, 1.0)
+        assert width == 0.5
+        assert height > THEME.min_box_height
+
+    def test_fixed_height_wins_and_width_stays_automatic(self) -> None:
+        width, height = box_size(Box(label=LONG, height=0.2), THEME, 1.0)
+        assert height == 0.2
+        assert width > THEME.min_box_width
+
+    def test_fully_fixed_box_ignores_its_text(self) -> None:
+        missing_font = THEME.model_copy(update={"font_family": "No Such Sans"})
+        box = Box(label=LONG, width=2, height=1)
+        assert box_size(box, missing_font, 1.0) == (2, 1)
+
+    def test_padding_comes_from_the_theme(self) -> None:
+        roomy = THEME.model_copy(update={"text_padding": THEME.text_padding + 1})
+        base = box_size(Box(label=LONG), THEME, 1.0)
+        assert box_size(Box(label=LONG), roomy, 1.0)[0] == pytest.approx(base[0] + 2)
+
+    def test_larger_scale_shrinks_text_but_not_padding(self) -> None:
+        box = Box(label=LONG)
+        pad = 2 * THEME.text_padding
+        at_one = box_size(box, THEME, 1.0)[0] - pad
+        at_two = box_size(box, THEME, 2.0)[0] - pad
+        assert at_two == pytest.approx(at_one / 2)
