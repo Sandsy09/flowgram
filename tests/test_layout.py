@@ -1,4 +1,4 @@
-"""Tests for layout result types."""
+"""Tests for layout result types, sizing and positioning."""
 
 import dataclasses
 
@@ -6,8 +6,17 @@ import pytest
 
 from flowgram import Box, Column, Row, Spacer, Theme
 from flowgram._text import measure_text
-from flowgram.components import Side
-from flowgram.layout import Layout, NodePath, Rect, Size, box_size, node_sizes
+from flowgram.components import Align, Side
+from flowgram.layout import (
+    Container,
+    Layout,
+    NodePath,
+    Rect,
+    Size,
+    box_size,
+    node_rects,
+    node_sizes,
+)
 
 THEME = Theme.light()
 LONG = "A label long enough to need more than the minimum width"
@@ -280,3 +289,103 @@ class TestUniform:
         row = Row(uniform=True, children=[_fixed(1, 2), _fixed(3, 1)])
         sizes = node_sizes(row, THEME, 1.0)
         assert (sizes[(0,)], sizes[(1,)]) == ((1, 2), (3, 1))
+
+
+def _rects(root: Container) -> dict[NodePath, Rect]:
+    return node_rects(root, node_sizes(root, THEME, 1.0), THEME)
+
+
+def _inside(inner: Rect, outer: Rect) -> bool:
+    eps = 1e-9
+    return (
+        inner.x >= outer.x - eps
+        and inner.y >= outer.y - eps
+        and inner.right <= outer.right + eps
+        and inner.bottom <= outer.bottom + eps
+    )
+
+
+def _overlap(a: Rect, b: Rect) -> bool:
+    eps = 1e-9
+    return (
+        a.x < b.right - eps
+        and b.x < a.right - eps
+        and a.y < b.bottom - eps
+        and b.y < a.bottom - eps
+    )
+
+
+class TestNodeRects:
+    def test_root_sits_at_the_origin(self) -> None:
+        assert _rects(Row(children=[_fixed(2, 1)]))[()] == Rect(0, 0, 2, 1)
+
+    def test_row_places_children_left_to_right_with_gaps(self) -> None:
+        row = Row(gap=1, padding=0.5, children=[_fixed(1, 1), _fixed(2, 1)])
+        rects = _rects(row)
+        assert [rects[(0,)], rects[(1,)]] == [
+            Rect(0.5, 0.5, 1, 1),
+            Rect(2.5, 0.5, 2, 1),
+        ]
+
+    def test_column_places_children_top_to_bottom(self) -> None:
+        column = Column(gap=1, children=[_fixed(1, 1), _fixed(1, 2)])
+        rects = _rects(column)
+        assert [rects[(0,)], rects[(1,)]] == [Rect(0, 0, 1, 1), Rect(0, 2, 1, 2)]
+
+    @pytest.mark.parametrize(("align", "y"), [("start", 0), ("center", 1), ("end", 2)])
+    def test_row_aligns_on_the_vertical_axis(self, align: Align, y: float) -> None:
+        row = Row(gap=0, align=align, children=[_fixed(1, 3), _fixed(1, 1)])
+        assert _rects(row)[(1,)] == Rect(1, y, 1, 1)
+
+    @pytest.mark.parametrize(("align", "x"), [("start", 0), ("center", 1), ("end", 2)])
+    def test_column_aligns_on_the_horizontal_axis(self, align: Align, x: float) -> None:
+        column = Column(gap=0, align=align, children=[_fixed(3, 1), _fixed(1, 1)])
+        assert _rects(column)[(1,)] == Rect(x, 1, 1, 1)
+
+    def test_alignment_happens_inside_the_padding(self) -> None:
+        row = Row(align="end", padding=1, children=[_fixed(1, 3), _fixed(1, 1)])
+        assert _rects(row)[(1,)].bottom == 4
+
+    def test_spacer_takes_space_without_gaps(self) -> None:
+        row = Row(gap=2, children=[_fixed(1, 1), Spacer(size=1), _fixed(1, 1)])
+        rects = _rects(row)
+        assert rects[(1,)].x == 1
+        assert rects[(1,)].width == 1
+        assert rects[(2,)].x == 2
+
+    def test_nested_containers_offset_their_children(self) -> None:
+        inner = Column(gap=0.5, padding=0.25, children=[_fixed(1, 1), _fixed(1, 1)])
+        outer = Row(gap=1, padding=0.5, align="start", children=[_fixed(2, 2), inner])
+        rects = _rects(outer)
+        assert rects[(1,)] == Rect(3.5, 0.5, 1.5, 3)
+        assert rects[(1, 0)] == Rect(3.75, 0.75, 1, 1)
+        assert rects[(1, 1)] == Rect(3.75, 2.25, 1, 1)
+
+    @pytest.mark.parametrize("align", ["start", "center", "end"])
+    def test_children_stay_inside_and_never_overlap(self, align: Align) -> None:
+        tree = Row(
+            gap=0.5,
+            padding=0.3,
+            align=align,
+            children=[
+                _fixed(1, 2),
+                Column(
+                    align=align,
+                    padding=0.2,
+                    children=[_fixed(2, 1), Spacer(size=0.5), _fixed(1, 1)],
+                ),
+                Row(uniform=True, children=[Box(label=LONG), Box(label="B")]),
+            ],
+        )
+        rects = _rects(tree)
+        for path, rect in rects.items():
+            if path:
+                assert _inside(rect, rects[path[:-1]]), path
+        siblings: dict[NodePath, list[Rect]] = {}
+        for path, rect in rects.items():
+            if path:
+                siblings.setdefault(path[:-1], []).append(rect)
+        for group in siblings.values():
+            for i, a in enumerate(group):
+                for b in group[i + 1 :]:
+                    assert not _overlap(a, b)
