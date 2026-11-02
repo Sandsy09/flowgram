@@ -11,3 +11,7 @@
 ## Theme
 
 ::: flowgram.theme
+
+## Layout
+
+::: flowgram.layout

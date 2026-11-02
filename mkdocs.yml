@@ -45,6 +45,7 @@ nav:
       - 0001 Record architecture decisions: adr/0001-record-architecture-decisions.md
       - 0002 Frozen Pydantic spec models: adr/0002-frozen-pydantic-spec-models.md
       - 0003 Abstract units and layout-only containers: adr/0003-abstract-units-and-layout-only-containers.md
+      - 0004 Layout results keyed by node path: adr/0004-layout-results-keyed-by-node-path.md
 
 markdown_extensions:
   - admonition
