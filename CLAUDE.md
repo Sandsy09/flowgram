@@ -98,22 +98,22 @@ uv run poe docs:build              # docs, warnings are errors
 several edges along one side, auto-layout, a CLI, non-matplotlib backends. These are
 planned for later releases in the roadmap. Do not start them early.
 
-## Next task: milestone 4, edges
+## Next task: milestone 5, export and loading
 
-Done when a branching diagram's snapshot shows every edge on the correct sides. The
-steps are issues #14 to #20 in milestone 4. #14 needs only the layout engine.
+Done when exports open correctly and re-render identically. The API check (#20) came
+first, as the roadmap asks; its fixes block the export and loading issues.
 
-1. Anchors (#14): the four side midpoints of each box, from `Rect.side_midpoint`.
-2. Side choice (#15): the dominant axis between box centres picks `exit` and `entry`
-   when they are `None`; explicit sides are respected.
-3. Routing (#16): straight when the anchors line up within a small tolerance, otherwise
-   an orthogonal elbow with one midpoint bend; `routing` overrides the choice. Pure
-   geometry, tested without drawing.
-4. Draw edges (#17): line styles, arrowheads (`end`, `both`, `none`), colour and width
-   overrides, at `render.Z_EDGE` under the boxes.
-5. Edge labels (#18): centred on the longest segment with a background-coloured pad, at
-   `render.Z_EDGE_LABEL`.
-6. Gate (#19): a branching diagram snapshot; document the known limits.
-7. API check (#20): rebuild the reference ML flowchart in about 30 lines and file API
-   fixes. The reference file is the user's work material: keep it out of the repo and
-   issues.
+1. API fixes from the check, first:
+   - Separate subtitle colour for boxes (#65).
+   - Top-aligned box text, and `line_spacing` and `tier_gap` in the theme (#66).
+   - Diagram subtitle styled apart from box subtitles (#67).
+   - Diagram footnote (#68) needs the user's decision on scope before it starts.
+2. `Diagram.save(path, dpi, transparent)` to PNG, SVG and PDF (#21), then byte-identical
+   re-renders (#22).
+3. Jupyter display, PNG by default with SVG on request (#23).
+4. Loading with explicit `from_dict`, `from_json`, `from_yaml` and file variants (#24);
+   YAML behind the `yaml` extra.
+
+`examples/card_flow.py` is the committed API check: a neutral rebuild of the user's
+reference slide. The reference itself is the user's work material: keep it and its text
+out of the repo, issues and PRs.
