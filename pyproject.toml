@@ -1,7 +1,7 @@
 [project]
 name = "flowgram"
 version = "0.1.0"
-description = "Reuable components, modular diagram builder"
+description = "Reusable components, modular diagram builder"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
