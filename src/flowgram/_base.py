@@ -1,7 +1,7 @@
 """Shared base model and validated field types for every flowgram spec."""
 
 from collections.abc import Sequence
-from typing import Annotated, TypeVar
+from typing import Annotated, Literal, TypeVar
 
 from matplotlib.colors import is_color_like
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
@@ -49,3 +49,9 @@ Positive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
 NonNegative = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 """A finite number that is zero or greater."""
+
+TextAlign = Literal["left", "center", "right"]
+"""Horizontal alignment of text lines."""
+
+FontWeight = Literal["normal", "bold"]
+"""Weight of a line of text."""

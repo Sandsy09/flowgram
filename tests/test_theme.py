@@ -91,3 +91,47 @@ def test_model_copy_builds_a_variant() -> None:
     wide = Theme.light().model_copy(update={"gap": 3.0})
     assert wide.gap == 3.0
     assert Theme.light().gap == 1.0
+
+
+def test_text_styling_defaults() -> None:
+    theme = Theme.light()
+    assert theme.label_weight == "bold"
+    assert theme.subtitle_weight == "normal"
+    assert theme.eyebrow_weight == "bold"
+    assert theme.text_align == "center"
+    assert theme.eyebrow_size < theme.label_size
+
+
+@pytest.mark.parametrize("field", ["label_weight", "subtitle_weight", "eyebrow_weight"])
+def test_unknown_font_weight_lists_the_choices(field: str) -> None:
+    with pytest.raises(ValidationError, match="'normal' or 'bold'"):
+        _theme(**{field: "heavy"})
+
+
+def test_unknown_text_align_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="'left', 'center' or 'right'"):
+        _theme(text_align="middle")
+
+
+def test_eyebrow_size_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        _theme(eyebrow_size=0)
+
+
+def test_role_eyebrow_colour_is_optional() -> None:
+    assert _role().eyebrow is None
+    role = RoleStyle(
+        fill="#FFFFFF", stroke="#000000", text="#111111", eyebrow="tab:blue"
+    )
+    assert role.eyebrow == "tab:blue"
+
+
+def test_role_with_bad_eyebrow_colour_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="eyebrow"):
+        RoleStyle(fill="#FFFFFF", stroke="#000000", text="#111111", eyebrow="nope")
+
+
+def test_left_aligned_variant() -> None:
+    left = Theme.light().model_copy(update={"text_align": "left"})
+    assert left.text_align == "left"
+    assert Theme.light().text_align == "center"

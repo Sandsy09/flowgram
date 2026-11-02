@@ -4,7 +4,14 @@ from typing import Self
 
 from pydantic import model_validator
 
-from flowgram._base import Colour, NonNegative, Positive, Spec
+from flowgram._base import (
+    Colour,
+    FontWeight,
+    NonNegative,
+    Positive,
+    Spec,
+    TextAlign,
+)
 
 DEFAULT_ROLE = "default"
 """The role every theme must define; boxes use it unless told otherwise."""
@@ -16,12 +23,14 @@ class RoleStyle(Spec):
     Attributes:
         fill: Box background colour.
         stroke: Box outline colour.
-        text: Label colour drawn on top of the fill.
+        text: Label and subtitle colour drawn on top of the fill.
+        eyebrow: Eyebrow colour, or ``None`` to use ``text``.
     """
 
     fill: Colour
     stroke: Colour
     text: Colour
+    eyebrow: Colour | None = None
 
 
 def _light_roles() -> dict[str, RoleStyle]:
@@ -59,7 +68,12 @@ class Theme(Spec):
         title_size: Diagram title size in points.
         subtitle_size: Diagram and box subtitle size in points.
         label_size: Box label size in points.
+        eyebrow_size: Box eyebrow size in points.
         edge_label_size: Edge label size in points.
+        label_weight: Weight of box labels.
+        subtitle_weight: Weight of box subtitles.
+        eyebrow_weight: Weight of box eyebrows.
+        text_align: Default horizontal alignment of text inside boxes.
         line_width: Default box outline width in points.
         corner_radius: Default box corner radius in units.
         gap: Default space between children of a Row or Column, in units.
@@ -79,7 +93,12 @@ class Theme(Spec):
     title_size: Positive = 16.0
     subtitle_size: Positive = 11.0
     label_size: Positive = 11.0
+    eyebrow_size: Positive = 8.5
     edge_label_size: Positive = 9.0
+    label_weight: FontWeight = "bold"
+    subtitle_weight: FontWeight = "normal"
+    eyebrow_weight: FontWeight = "bold"
+    text_align: TextAlign = "center"
 
     line_width: Positive = 1.5
     corner_radius: NonNegative = 0.15

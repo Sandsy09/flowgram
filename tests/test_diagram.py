@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from flowgram import Box, Column, Diagram, Edge, Row, Spacer, Theme
+from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
 
 
 def _pipeline() -> Diagram:
@@ -183,3 +183,23 @@ def test_loading_from_a_dict_needs_kind_markers() -> None:
         "edges": [],
     }
     assert Diagram.model_validate(data).boxes()[0].id == "a"
+
+
+def test_text_styling_round_trips_through_json() -> None:
+    roles = {
+        "default": RoleStyle(
+            fill="#FFFFFF", stroke="#334155", text="#0F172A", eyebrow="#2563EB"
+        )
+    }
+    theme = Theme(roles=roles, text_align="left", subtitle_weight="bold")
+    card = Box(
+        id="pd",
+        eyebrow="MODEL A",
+        label="Customer PD",
+        subtitle="Baseline risk",
+        text_align="right",
+        eyebrow_color="tab:green",
+    )
+    diagram = Diagram(root=Row(children=[card]), theme=theme)
+    assert Diagram.model_validate_json(diagram.model_dump_json()) == diagram
+    assert Diagram.model_validate(diagram.model_dump()) == diagram

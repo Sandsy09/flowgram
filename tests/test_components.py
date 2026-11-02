@@ -64,6 +64,41 @@ class TestBox:
         assert box.model_copy(update={"role": "accent"}).role == "accent"
         assert box.role == "default"
 
+    def test_text_styling_defaults_to_the_theme(self) -> None:
+        box = Box(label="A")
+        assert box.eyebrow is None
+        assert box.text_align is None
+        assert box.eyebrow_color is None
+
+    def test_three_text_tiers(self) -> None:
+        box = Box(eyebrow="MODEL A", label="Customer PD", subtitle="Baseline\nrisk")
+        assert (box.eyebrow, box.label, box.subtitle) == (
+            "MODEL A",
+            "Customer PD",
+            "Baseline\nrisk",
+        )
+
+    @pytest.mark.parametrize("align", ["left", "center", "right"])
+    def test_text_align_values(self, align: str) -> None:
+        assert _box(text_align=align).text_align == align
+
+    def test_unknown_text_align_lists_the_choices(self) -> None:
+        with pytest.raises(ValidationError, match="'left', 'center' or 'right'"):
+            _box(text_align="justify")
+
+    def test_empty_eyebrow_is_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            _box(eyebrow="")
+
+    def test_bad_eyebrow_colour_is_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="eyebrow_color"):
+            _box(eyebrow_color="nope")
+
+    def test_every_problem_is_reported_at_once(self) -> None:
+        with pytest.raises(ValidationError) as caught:
+            _box(eyebrow="", text_align="justify", eyebrow_color="nope")
+        assert caught.value.error_count() == 3
+
 
 class TestSpacer:
     def test_size_is_required(self) -> None:
