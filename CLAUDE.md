@@ -69,6 +69,19 @@ uv run poe docs:build              # docs, warnings are errors
 
 - `main` is never committed to directly. Branch as `<type>/<slug>` (for example
   `feat/layout-engine`), open a PR, squash merge with a Conventional Commits subject.
+  The PR title becomes that subject, and the PR title check enforces it.
+- Every piece of work has a GitHub issue in its milestone. The PR body says
+  `Closes #N`. Respect the "blocked by" links: do not start an issue whose blockers are
+  open.
+- Labels are defined in `.github/labels.yml` and synced by a workflow. Edit that file
+  rather than the labels on GitHub. Every issue gets one type label (bare, such as
+  `enhancement`), plus `area:`, `priority:` and `size:` labels.
+- Releases: bump `version` in `pyproject.toml`, merge, then push tag `vX.Y.Z`. The
+  Release workflow publishes to TestPyPI, then to PyPI after approval of the `pypi`
+  environment, and creates a GitHub Release. Pre-release tags (`rc`, `a`, `b`) stop at
+  TestPyPI.
+- New workflows go in their own files under `.github/workflows/`, because `ci.yml` is
+  forge-owned.
 - Google-style docstrings on all public names. mypy strict and pyright must pass.
   Coverage must stay at or above 90 percent.
 - Files listed in `.forge/generation.json` with regeneration `replace` are overwritten
