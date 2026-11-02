@@ -14,11 +14,15 @@ from matplotlib.text import Text
 from matplotlib.transforms import Bbox
 
 import flowgram
-from flowgram import Box, Column, Diagram, RoleStyle, Row, Spacer, Theme
+from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
 from flowgram._base import TextAlign
 from flowgram._text import POINTS_PER_INCH, TIER_GAP, measure_text, text_size
+from flowgram.components import EdgeStyle
+from flowgram.edges import anchor, route
 from flowgram.layout import Layout, NodePath, Rect, layout
 from flowgram.render import (
+    ARROW_LENGTH,
+    ARROW_WIDTH,
     FIGURE_DPI,
     SVG_HASH_SALT,
     TITLE_GAP,
@@ -27,11 +31,15 @@ from flowgram.render import (
     Z_EDGE,
     Z_EDGE_LABEL,
     DrawnBox,
+    DrawnEdge,
     Frame,
     box_look,
     draw_box,
     draw_boxes,
+    draw_edge,
+    draw_edges,
     draw_title,
+    edge_look,
     frame,
     new_figure,
     rc_params,
@@ -631,3 +639,193 @@ def test_no_pyplot_import_in_the_package() -> None:
         if PYPLOT_IMPORT.search(path.read_text(encoding="utf-8"))
     ]
     assert offenders == []
+
+
+def _edge_diagram(*edges: Edge, line_width: float = 2.0) -> Diagram:
+    """Two fixed boxes 2 units apart in a row, plus ``edges`` between them."""
+    return Diagram(
+        root=Row(
+            gap=2,
+            children=[
+                Box(id="a", label="a", width=2, height=1, line_width=line_width),
+                Box(id="b", label="b", width=2, height=1, line_width=line_width),
+                Box(id="c", label="c", width=2, height=3, line_width=line_width),
+            ],
+        ),
+        edges=list(edges),
+    )
+
+
+def _draw_edges(diagram: Diagram) -> tuple[Layout, tuple[DrawnEdge, ...]]:
+    result = layout(diagram)
+    _, axes = new_figure(diagram, frame(diagram, result))
+    return result, draw_edges(axes, diagram, result)
+
+
+UNIT = 1 / POINTS_PER_INCH
+"""One point in units, at scale 1."""
+
+
+class TestEdgeLook:
+    def test_defaults_come_from_the_theme(self) -> None:
+        look = edge_look(Edge(src="a", dst="b"), LIGHT)
+        assert (look.color, look.line_width, look.line_style) == (
+            LIGHT.edge_color,
+            LIGHT.edge_line_width,
+            "solid",
+        )
+
+    def test_overrides_win(self) -> None:
+        edge = Edge(src="a", dst="b", color="#DC2626", line_width=3, style="dotted")
+        look = edge_look(edge, LIGHT)
+        assert (look.color, look.line_width, look.line_style) == (
+            "#DC2626",
+            3,
+            "dotted",
+        )
+
+
+class TestDrawEdge:
+    @pytest.mark.parametrize(
+        ("style", "pattern"), [("solid", "-"), ("dashed", "--"), ("dotted", ":")]
+    )
+    def test_line_styles(self, style: EdgeStyle, pattern: str) -> None:
+        _, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b", style=style)))
+        assert drawn.line.get_linestyle() == pattern
+        assert all(head.get_linestyle() == "solid" for head in drawn.heads)
+
+    def test_colour_and_width(self) -> None:
+        edge = Edge(src="a", dst="b", color="#16A34A", line_width=2.5)
+        _, (drawn,) = _draw_edges(_edge_diagram(edge))
+        assert drawn.line.get_linewidth() == 2.5
+        assert to_rgba(drawn.line.get_color()) == to_rgba("#16A34A")
+        (head,) = drawn.heads
+        assert head.get_facecolor() == pytest.approx(to_rgba("#16A34A"))
+
+    @pytest.mark.parametrize(("arrow", "count"), [("end", 1), ("both", 2), ("none", 0)])
+    def test_arrow_ends(self, arrow: str, count: int) -> None:
+        _, (drawn,) = _draw_edges(
+            _edge_diagram(Edge.model_validate({"src": "a", "dst": "b", "arrow": arrow}))
+        )
+        assert len(drawn.heads) == count
+
+    def test_tip_touches_the_outside_of_the_outline(self) -> None:
+        result, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b")))
+        (head,) = drawn.heads
+        tip = tuple(head.get_xy()[0])
+        x, y = anchor(result.box("b"), "left")
+        # Half of the 2 pt outline sits outside the box.
+        assert tip == pytest.approx((x - 1 * UNIT, y))
+
+    def test_arrowhead_size_follows_the_theme(self) -> None:
+        _, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b")))
+        tip, wing, other = (tuple(p) for p in drawn.heads[0].get_xy()[:3])
+        length = LIGHT.arrow_size * ARROW_LENGTH * UNIT
+        width = LIGHT.arrow_size * ARROW_WIDTH * UNIT
+        assert tip[0] - wing[0] == pytest.approx(length)
+        assert abs(wing[1] - other[1]) == pytest.approx(width)
+
+    def test_line_stops_at_the_arrowhead_base(self) -> None:
+        result, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b")))
+        xs = drawn.line.get_xdata()
+        tip = drawn.heads[0].get_xy()[0][0]
+        assert xs[-1] == pytest.approx(tip - LIGHT.arrow_size * ARROW_LENGTH * UNIT)  # type: ignore[index]
+        # The start has no arrowhead: it only clears the source outline.
+        assert xs[0] == pytest.approx(anchor(result.box("a"), "right")[0] + UNIT)  # type: ignore[index]
+
+    def test_both_ends_point_outwards(self) -> None:
+        edge = Edge(src="a", dst="b", arrow="both")
+        result, (drawn,) = _draw_edges(_edge_diagram(edge))
+        end, start = (head.get_xy()[0] for head in drawn.heads)
+        assert end[0] == pytest.approx(anchor(result.box("b"), "left")[0] - UNIT)
+        assert start[0] == pytest.approx(anchor(result.box("a"), "right")[0] + UNIT)
+
+    def test_elbow_heads_follow_the_last_segment(self) -> None:
+        # In a top-aligned row, a's bottom (y 1) is above c's middle
+        # (y 1.5), so the edge goes down out of a, then right into c.
+        diagram = Diagram(
+            root=Row(
+                align="start",
+                children=[
+                    Box(id="a", label="a", width=2, height=1),
+                    Box(id="c", label="c", width=2, height=3),
+                ],
+            ),
+            edges=[Edge(src="a", dst="c", exit="bottom", entry="left")],
+        )
+        result, (drawn,) = _draw_edges(diagram)
+        start, corner, end = drawn.route.points
+        assert corner == (start[0], end[1])
+        tip, wing, _ = (tuple(p) for p in drawn.heads[0].get_xy()[:3])
+        outline = LIGHT.line_width / 2 * UNIT
+        left = anchor(result.box("c"), "left")
+        assert tip == pytest.approx((left[0] - outline, left[1]))
+        assert wing[0] < tip[0]
+
+    def test_edges_sit_under_boxes(self) -> None:
+        _, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b")))
+        assert drawn.line.get_zorder() == Z_EDGE
+        assert all(head.get_zorder() == Z_EDGE for head in drawn.heads)
+
+    def test_short_segment_never_reverses(self) -> None:
+        theme = LIGHT.model_copy(update={"arrow_size": 400})
+        diagram = _edge_diagram(Edge(src="a", dst="b")).model_copy(
+            update={"theme": theme}
+        )
+        result, (drawn,) = _draw_edges(diagram)
+        xs = list(drawn.line.get_xdata())  # type: ignore[arg-type]
+        assert xs[-1] >= xs[0]
+        assert xs[0] >= result.box("a").right
+
+    def test_draw_edge_without_outlines_ends_on_the_anchor(self) -> None:
+        diagram = _edge_diagram()
+        result = layout(diagram)
+        edge = Edge(src="a", dst="b", arrow="none")
+        drawn = draw_edge(_axes(), edge, route(edge, result), LIGHT, 1)
+        end = (drawn.line.get_xdata()[-1], drawn.line.get_ydata()[-1])  # type: ignore[index]
+        assert end == anchor(result.box("b"), "left")
+
+
+class TestDrawEdges:
+    def test_one_drawn_edge_per_edge_in_order(self) -> None:
+        diagram = _edge_diagram(Edge(src="a", dst="b"), Edge(src="b", dst="c"))
+        _, drawn = _draw_edges(diagram)
+        assert [(d.route.points[0], d.route.points[-1]) for d in drawn] == [
+            (route(e, layout(diagram)).points[0], route(e, layout(diagram)).points[-1])
+            for e in diagram.edges
+        ]
+
+    def test_render_and_draw_include_edges(self) -> None:
+        diagram = _edge_diagram(Edge(src="a", dst="b"), Edge(src="b", dst="c"))
+        (axes,) = diagram.render().axes
+        assert len(axes.lines) == 2
+        target = Figure().subplots()
+        diagram.draw(target)
+        assert len(target.lines) == 2
+
+    def test_dash_settings_are_fixed(self) -> None:
+        params = rc_params(LIGHT)
+        assert params["lines.scale_dashes"] is True
+        with mpl.rc_context({"lines.dashed_pattern": [10, 10]}):
+            (axes,) = (
+                _edge_diagram(Edge(src="a", dst="b", style="dashed")).render().axes
+            )
+        _, dashes = axes.lines[0]._dash_pattern  # type: ignore[attr-defined]
+        assert dashes[0] == pytest.approx(3.7 * LIGHT.edge_line_width)
+
+
+def test_edge_between_touching_boxes_draws_without_error() -> None:
+    diagram = Diagram(
+        root=Row(
+            gap=0,
+            children=[
+                Box(id="a", label="a", width=2, height=1),
+                Box(id="b", label="b", width=2, height=1),
+            ],
+        ),
+        edges=[Edge(src="a", dst="b", arrow="both")],
+    )
+    _, (drawn,) = _draw_edges(diagram)
+    assert len(drawn.heads) == 2
+    FigureCanvasAgg(drawn.line.get_figure()).draw()  # type: ignore[arg-type, no-untyped-call]
+    assert list(drawn.route.points) == [(2, 0.5), (2, 0.5)]

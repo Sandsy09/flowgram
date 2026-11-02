@@ -15,6 +15,10 @@ Side = Literal["left", "right", "top", "bottom"]
 """A side of a box where an edge can leave or arrive."""
 
 
+EdgeStyle = Literal["solid", "dashed", "dotted"]
+"""How an edge's line is drawn."""
+
+
 class Box(Spec):
     """A labelled rectangle, the basic node of a diagram.
 
@@ -142,7 +146,7 @@ class Edge(Spec):
     entry: Side | None = None
     routing: Literal["auto", "straight", "elbow"] = "auto"
     label: str | None = None
-    style: Literal["solid", "dashed", "dotted"] = "solid"
+    style: EdgeStyle = "solid"
     arrow: Literal["end", "both", "none"] = "end"
     color: Colour | None = None
     line_width: Positive | None = None
