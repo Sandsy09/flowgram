@@ -1,5 +1,9 @@
 """Tests for the renderer: figures, axes and drawn artists, without images."""
 
+import io
+import re
+from pathlib import Path
+
 import matplotlib as mpl
 import pytest
 from matplotlib.axes import Axes
@@ -9,6 +13,7 @@ from matplotlib.figure import Figure
 from matplotlib.text import Text
 from matplotlib.transforms import Bbox
 
+import flowgram
 from flowgram import Box, Column, Diagram, RoleStyle, Row, Spacer, Theme
 from flowgram._base import TextAlign
 from flowgram._text import POINTS_PER_INCH, TIER_GAP, measure_text, text_size
@@ -30,6 +35,7 @@ from flowgram.render import (
     frame,
     new_figure,
     rc_params,
+    render,
     title_band,
 )
 
@@ -503,3 +509,125 @@ class TestDrawTitle:
             assert box.x1 <= width + 0.5
             assert box.y1 <= height + 0.5
             assert box.y0 >= content_top
+
+
+def _one_row() -> Diagram:
+    return Diagram(
+        title="Model training pipeline",
+        subtitle="Three steps, three roles",
+        root=Row(
+            children=[
+                Box(id="data", label="Raw data", role="muted"),
+                Box(id="clean", label="Clean", subtitle="impute, clip"),
+                Box(id="model", label="Model", eyebrow="STEP 3", role="accent"),
+            ]
+        ),
+    )
+
+
+class TestRender:
+    def test_returns_a_figure_sized_to_the_frame(self) -> None:
+        diagram = _one_row()
+        figure = diagram.render()
+        view = frame(diagram, layout(diagram))
+        assert isinstance(figure, Figure)
+        assert tuple(figure.get_size_inches()) == pytest.approx(
+            (view.width * diagram.scale, view.height * diagram.scale)
+        )
+
+    def test_draws_every_box_and_the_title(self) -> None:
+        (axes,) = _one_row().render().axes
+        assert len(axes.patches) == 3
+        assert [t.get_text() for t in axes.texts] == [
+            "Raw data",
+            "Clean",
+            "impute, clip",
+            "STEP 3",
+            "Model",
+            "Model training pipeline",
+            "Three steps, three roles",
+        ]
+
+    def test_method_and_function_agree(self) -> None:
+        diagram = _one_row()
+        by_method = diagram.render()
+        by_function = render(diagram)
+        assert tuple(by_method.get_size_inches()) == tuple(
+            by_function.get_size_inches()
+        )
+        assert by_method.axes[0].get_xlim() == by_function.axes[0].get_xlim()
+
+    def test_figures_are_not_tracked_by_pyplot(self) -> None:
+        figure = _one_row().render()
+        assert figure.canvas.manager is None
+
+    def test_renders_to_png_on_every_platform(self) -> None:
+        # The image compare only runs on Linux; this checks drawing works.
+        figure = _one_row().render()
+        buffer = io.BytesIO()
+        figure.savefig(buffer, format="png")
+        assert buffer.getvalue().startswith(b"\x89PNG")
+
+    def test_theme_font_is_used_even_under_another_style(self) -> None:
+        with mpl.rc_context({"font.family": "DejaVu Serif"}):
+            figure = _one_row().render()
+        assert all(
+            t.get_fontfamily() == [LIGHT.font_family] for t in figure.axes[0].texts
+        )
+
+    def test_render_settings_do_not_leak(self) -> None:
+        before = dict(mpl.rcParams)
+        _one_row().render()
+        assert dict(mpl.rcParams) == before
+
+
+class TestDraw:
+    def test_draws_into_a_subplot_without_resizing_the_figure(self) -> None:
+        figure = Figure(figsize=(8, 3))
+        left, right = figure.subplots(1, 2)
+        right.plot([0, 1], [0, 1])
+        _one_row().draw(left)
+        assert tuple(figure.get_size_inches()) == (8, 3)
+        assert len(left.patches) == 3
+        assert len(left.texts) == 7
+        assert not right.patches
+
+    def test_sets_limits_equal_aspect_and_no_axis(self) -> None:
+        diagram = _one_row()
+        axes = Figure().subplots()
+        diagram.draw(axes)
+        view = frame(diagram, layout(diagram))
+        assert axes.get_xlim() == pytest.approx((view.left, view.right))
+        assert axes.get_ylim() == pytest.approx((view.bottom, view.top))
+        assert axes.get_aspect() == 1.0
+        assert not axes.axison
+
+
+PYPLOT_IMPORT = re.compile(
+    r"^\s*(?:import\s+matplotlib\.pyplot|from\s+matplotlib(?:\.pyplot\s+import|"
+    r"\s+import\s+.*\bpyplot\b))",
+    re.MULTILINE,
+)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "import matplotlib.pyplot as plt",
+        "from matplotlib import pyplot",
+        "from matplotlib import colors, pyplot as plt",
+        "    from matplotlib.pyplot import subplots",
+    ],
+)
+def test_pyplot_import_pattern(line: str) -> None:
+    assert PYPLOT_IMPORT.search(line)
+
+
+def test_no_pyplot_import_in_the_package() -> None:
+    package = Path(flowgram.__file__).parent
+    offenders = [
+        path.name
+        for path in sorted(package.rglob("*.py"))
+        if PYPLOT_IMPORT.search(path.read_text(encoding="utf-8"))
+    ]
+    assert offenders == []

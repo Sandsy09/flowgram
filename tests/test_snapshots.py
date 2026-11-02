@@ -10,6 +10,8 @@ import pytest
 from matplotlib.figure import Figure
 from matplotlib.patches import FancyBboxPatch
 
+from flowgram import Box, Diagram, Row
+
 SnapshotCheck = Callable[[Figure, str], None]
 
 
@@ -32,3 +34,20 @@ def test_harness_smoke(snapshot: SnapshotCheck) -> None:
     )
     axes.text(1, 0.5, "flowgram", ha="center", va="center", color="white")
     snapshot(figure, "harness_smoke")
+
+
+@pytest.mark.snapshot
+def test_one_row(snapshot: SnapshotCheck) -> None:
+    """Milestone 3 gate: one row of three boxes with mixed roles and a title."""
+    diagram = Diagram(
+        title="Model training pipeline",
+        subtitle="Raw data is cleaned, then used to fit the model",
+        root=Row(
+            children=[
+                Box(id="data", label="Raw data", role="muted"),
+                Box(id="clean", label="Clean", subtitle="impute, clip"),
+                Box(id="model", label="Model", eyebrow="STEP 3", role="accent"),
+            ]
+        ),
+    )
+    snapshot(diagram.render(), "one_row")

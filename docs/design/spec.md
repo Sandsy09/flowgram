@@ -73,8 +73,8 @@ spec = Diagram(
     ],
 )
 
-fig = spec.render()  # not built yet: milestone 3
-spec.draw(ax)  # not built yet: milestone 3
+fig = spec.render()  # a new matplotlib Figure
+spec.draw(ax)  # or draw into an Axes you already have
 spec.save("pipeline.svg")  # not built yet: milestone 5
 ```
 
