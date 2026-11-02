@@ -21,7 +21,14 @@ from matplotlib.patches import FancyBboxPatch
 from matplotlib.text import Text
 
 from flowgram._base import FontWeight, TextAlign
-from flowgram._text import LINE_SPACING, TierKind, measure_text
+from flowgram._text import (
+    LINE_SPACING,
+    POINTS_PER_INCH,
+    TIER_GAP,
+    TierKind,
+    measure_text,
+    text_size,
+)
 from flowgram.components import Box, Child, Column, Row
 from flowgram.diagram import Diagram
 from flowgram.layout import Layout, NodePath, Rect
@@ -35,6 +42,9 @@ FIGURE_DPI = 100.0
 
 SVG_HASH_SALT = "flowgram"
 """Fixed salt for SVG element ids, so one diagram always gives the same SVG."""
+
+TITLE_GAP = 1.0
+"""Space between the title band and the content, in title font sizes."""
 
 Z_EDGE = 1.0
 """Edges sit under boxes, so a line that crosses a box is hidden by its fill."""
@@ -111,18 +121,121 @@ class Frame:
         return self.bottom - self.top
 
 
-def frame(diagram: Diagram, layout: Layout) -> Frame:
-    """Return the area to show: the laid-out content plus diagram padding.
+@dataclass(frozen=True, slots=True)
+class TitleLine:
+    """The diagram title or subtitle, measured in units.
+
+    Attributes:
+        text: What the line says. It may contain newlines.
+        size: Font size in points.
+        weight: ``"normal"`` or ``"bold"``.
+        top: Distance from the top of the band to the top of this line.
+        width: Width of the widest line of text.
+        height: Height of all its lines of text.
+    """
+
+    text: str
+    size: float
+    weight: FontWeight
+    top: float
+    width: float
+    height: float
+
+
+@dataclass(frozen=True, slots=True)
+class TitleBand:
+    """The measured title and subtitle, stacked above the content.
+
+    Attributes:
+        lines: The title, the subtitle, or both, top to bottom.
+        width: Width of the wider line.
+        height: Height of the lines and the space between them, not counting
+            the ``TITLE_GAP`` between the band and the content.
+        gap: Space between the band and the content, in units.
+    """
+
+    lines: tuple[TitleLine, ...]
+    width: float
+    height: float
+    gap: float
+
+
+def title_band(diagram: Diagram) -> TitleBand | None:
+    """Measure the diagram's title and subtitle.
+
+    The title uses ``theme.title_size`` and ``theme.title_weight``, and the
+    subtitle uses ``theme.subtitle_size`` and ``theme.subtitle_weight``. The
+    subtitle sits ``TIER_GAP`` title sizes below the title, as box tiers do.
 
     Args:
-        diagram: Supplies the padding.
+        diagram: Supplies the title, subtitle, theme and scale.
+
+    Returns:
+        The band, or ``None`` when the diagram has no title or subtitle.
+    """
+    theme = diagram.theme
+    to_units = 1 / (POINTS_PER_INCH * diagram.scale)
+    specs: list[tuple[str | None, float, FontWeight]] = [
+        (diagram.title, theme.title_size, theme.title_weight),
+        (diagram.subtitle, theme.subtitle_size, theme.subtitle_weight),
+    ]
+    lines: list[TitleLine] = []
+    top = 0.0
+    for text, size, weight in specs:
+        if not text:
+            continue
+        if lines:
+            top += theme.title_size * TIER_GAP * to_units
+        width, height = text_size(text, size, weight, theme.font_family, diagram.scale)
+        lines.append(TitleLine(text, size, weight, top, width, height))
+        top += height
+    if not lines:
+        return None
+    return TitleBand(
+        lines=tuple(lines),
+        width=max(line.width for line in lines),
+        height=top,
+        gap=theme.title_size * TITLE_GAP * to_units,
+    )
+
+
+def _spread(align: TextAlign, extra: float) -> tuple[float, float]:
+    """Split ``extra`` width into space before and after, by alignment."""
+    if align == "left":
+        return 0.0, extra
+    if align == "right":
+        return extra, 0.0
+    return extra / 2, extra / 2
+
+
+def frame(diagram: Diagram, layout: Layout) -> Frame:
+    """Return the area to show: the title band, the content and padding.
+
+    The content keeps its layout coordinates. The title band, when there is
+    one, is added above it, so ``top`` moves up by the band's height and
+    ``TITLE_GAP``. A title wider than the content widens the frame. The
+    content then lines up with the title by ``theme.title_align``: it stays
+    on the left, sits in the middle, or moves to the right.
+
+    Args:
+        diagram: Supplies the padding, title and theme.
         layout: The diagram's layout, from ``flowgram.layout.layout``.
 
     Returns:
         The frame, in layout units.
     """
     pad = diagram.padding
-    return Frame(-pad, -pad, layout.width + pad, layout.height + pad)
+    band = title_band(diagram)
+    if band is None:
+        return Frame(-pad, -pad, layout.width + pad, layout.height + pad)
+    extra = max(band.width - layout.width, 0.0)
+    before, after = _spread(diagram.theme.title_align, extra)
+    return Frame(
+        -pad - before,
+        -pad - band.gap - band.height,
+        layout.width + after + pad,
+        layout.height + pad,
+    )
 
 
 def setup_axes(axes: Axes, frame: Frame) -> None:
@@ -350,3 +463,49 @@ def draw_boxes(
         path: draw_box(axes, box, layout.rect(path), diagram.theme, diagram.scale)
         for path, box in _boxes(diagram.root, ())
     }
+
+
+def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
+    """Draw the diagram's title and subtitle at the top of ``frame``.
+
+    The lines sit one padding in from the top and sides of the frame and are
+    aligned across it by ``theme.title_align``. Their colour is
+    ``theme.title_color``, or the ``default`` role's text colour when that is
+    ``None``.
+
+    Args:
+        axes: Axes set up by ``setup_axes`` to show ``frame``.
+        diagram: Supplies the title, subtitle, theme and padding.
+        frame: The frame from ``frame(diagram, layout)``.
+
+    Returns:
+        The text artists added, title first. Empty when there is no title or
+        subtitle.
+    """
+    band = title_band(diagram)
+    if band is None:
+        return ()
+    theme = diagram.theme
+    pad = diagram.padding
+    align = theme.title_align
+    inner = Rect(frame.left + pad, frame.top, frame.width - 2 * pad, frame.height)
+    x = _text_x(inner, align, 0.0)
+    color = theme.title_color or theme.roles["default"].text
+    return tuple(
+        axes.text(
+            x,
+            frame.top + pad + line.top,
+            line.text,
+            color=color,
+            fontfamily=theme.font_family,
+            fontsize=line.size,
+            fontweight=line.weight,
+            horizontalalignment=align,
+            multialignment=align,
+            verticalalignment="top",
+            linespacing=LINE_SPACING,
+            parse_math=False,
+            zorder=Z_BOX_TEXT,
+        )
+        for line in band.lines
+    )

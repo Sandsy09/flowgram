@@ -74,6 +74,12 @@ class Theme(Spec):
         subtitle_weight: Weight of box subtitles.
         eyebrow_weight: Weight of box eyebrows.
         text_align: Default horizontal alignment of text inside boxes.
+        title_weight: Weight of the diagram title. Its subtitle uses
+            ``subtitle_size`` and ``subtitle_weight``.
+        title_align: Alignment of the diagram title and subtitle across
+            the figure.
+        title_color: Colour of the diagram title and subtitle, or ``None``
+            for the ``default`` role's text colour.
         line_width: Default box outline width in points.
         corner_radius: Default box corner radius in units.
         gap: Default space between children of a Row or Column, in units.
@@ -99,6 +105,9 @@ class Theme(Spec):
     subtitle_weight: FontWeight = "normal"
     eyebrow_weight: FontWeight = "bold"
     text_align: TextAlign = "center"
+    title_weight: FontWeight = "bold"
+    title_align: TextAlign = "left"
+    title_color: Colour | None = None
 
     line_width: Positive = 1.5
     corner_radius: NonNegative = 0.15

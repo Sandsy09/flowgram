@@ -7,7 +7,7 @@ relations and tolerances rather than exact numbers.
 import pytest
 
 from flowgram import Theme
-from flowgram._text import TIER_GAP, measure_text
+from flowgram._text import TIER_GAP, measure_text, text_size
 
 THEME = Theme.light()
 
@@ -105,3 +105,14 @@ def test_unknown_font_family_is_a_clear_error() -> None:
 def test_no_text_measures_as_empty() -> None:
     block = measure_text("", THEME, 1.0)
     assert (block.width, block.height, block.tiers) == (0, 0, ())
+
+
+def test_text_size_matches_a_label_tier() -> None:
+    block = measure_text("Model", THEME, 2.0)
+    size = text_size("Model", THEME.label_size, THEME.label_weight, "DejaVu Sans", 2.0)
+    assert size == (block.width, block.height)
+
+
+def test_text_size_checks_the_font() -> None:
+    with pytest.raises(ValueError, match="'No Such Sans' is not installed"):
+        text_size("Model", 11, "normal", "No Such Sans", 1.0)

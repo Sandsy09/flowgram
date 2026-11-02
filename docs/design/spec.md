@@ -23,7 +23,7 @@ immutable spec and render it with matplotlib, without hand-placing every shape.
 | Font sizes | Fixed, in points | They do not follow `scale`. Revisit if a need appears. |
 | Edge spreading | Not in 0.1 | Several edges on one side share an anchor until release 0.4. |
 | Box text | Eyebrow, label and subtitle tiers, with alignment and font weights | Cards like the reference diagram's are possible in 0.1. Group panels wait for 0.2. |
-| Title alignment | Left-aligned by default, configurable | |
+| Title alignment | Left-aligned by default, configurable | `Theme.title_align`, beside the other text styling. A title wider than the content widens the figure. |
 | Jupyter display | PNG by default, SVG on request | Colleagues work in Jupyter and paste into PowerPoint. |
 | Loading | Explicit `from_dict`, `from_json`, `from_yaml` and file variants | No format guessing from file extensions. |
 | Dependency floors | CI tests the lowest versions `pyproject.toml` allows | A stale floor fails CI rather than a user's install. |
@@ -92,7 +92,9 @@ every component.
   eyebrow colour that falls back to the text colour; must include `default`),
   typography (sizes in points; `label_weight`, `subtitle_weight` and `eyebrow_weight`
   as `normal` or `bold`, defaulting to bold, normal and bold; `text_align` defaulting
-  to `center`), geometry in
+  to `center`; the diagram title's `title_weight`, `title_align` and
+  `title_color`, defaulting to bold, `left` and the default role's text
+  colour), geometry in
   units, edge defaults, `background`. Presets: `Theme.light()` (default) and
   `Theme.mono()`.
 - **Box:** `label`, `subtitle`, `eyebrow`, `role`, `id`, `width`, `height`,
