@@ -78,8 +78,15 @@ def test_measuring_is_stable() -> None:
 
 def test_a_point_of_text_is_a_seventy_second_of_an_inch() -> None:
     block = measure_text("Model", THEME, 1.0)
-    # One line at 11 pt is roughly 11-14 pt tall including descent.
-    assert 11 / 72 <= block.height <= 14 / 72
+    # One line is about as tall as its font size: 11 pt is 11/72 inch.
+    size = THEME.label_size / 72
+    assert 0.8 * size <= block.height <= 1.25 * size
+
+
+def test_line_height_does_not_depend_on_the_letters() -> None:
+    flat = measure_text("aaa", THEME, 1.0)
+    tall = measure_text("Égjy|", THEME, 1.0)
+    assert tall.height == flat.height
 
 
 @pytest.mark.parametrize("empty", [None, ""])

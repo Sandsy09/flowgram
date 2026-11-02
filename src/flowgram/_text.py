@@ -93,23 +93,27 @@ def _check_font(family: str) -> None:
 def _extent_points(
     text: str, size: float, weight: FontWeight, family: str
 ) -> tuple[float, float]:
-    """Return the ``(width, height)`` of ``text`` in points."""
+    """Return the ``(width, height)`` of ``text`` in points.
+
+    Width is the extent of the widest line as matplotlib lays it out. Height
+    comes from the font's line height instead of the inked glyphs, so every
+    line at a given size and weight is the same height whatever its letters,
+    on every matplotlib version (3.8 measures single lines by their ink).
+    """
     figure, canvas = _canvas()
-    artist = Text(
-        0,
-        0,
-        text,
-        fontsize=size,
-        fontweight=weight,
-        fontfamily=family,
-        linespacing=LINE_SPACING,
-    )
+    props = font_manager.FontProperties(family=family, size=size, weight=weight)
+    artist = Text(0, 0, text, fontproperties=props, linespacing=LINE_SPACING)
     artist.set_figure(figure)
     # matplotlib's stubs leave FigureCanvasAgg.get_renderer unannotated.
     renderer = canvas.get_renderer()  # type: ignore[no-untyped-call]
-    box = artist.get_window_extent(renderer)
+    width = artist.get_window_extent(renderer).width
+    # "lp" spans the font's ascender and descender; matplotlib uses the same
+    # string as its reference line height.
+    _, line_height, _ = renderer.get_text_width_height_descent("lp", props, False)
+    lines = text.count("\n") + 1
+    height = line_height * (1 + LINE_SPACING * (lines - 1))
     scale = _DPI / POINTS_PER_INCH
-    return box.width / scale, box.height / scale
+    return width / scale, height / scale
 
 
 def measure_text(
