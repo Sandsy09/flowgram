@@ -18,11 +18,12 @@ from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
 from flowgram._base import TextAlign
 from flowgram._text import POINTS_PER_INCH, TIER_GAP, measure_text, text_size
 from flowgram.components import EdgeStyle
-from flowgram.edges import anchor, route
+from flowgram.edges import anchor, label_point, route
 from flowgram.layout import Layout, NodePath, Rect, layout
 from flowgram.render import (
     ARROW_LENGTH,
     ARROW_WIDTH,
+    EDGE_LABEL_PAD,
     FIGURE_DPI,
     SVG_HASH_SALT,
     TITLE_GAP,
@@ -829,3 +830,82 @@ def test_edge_between_touching_boxes_draws_without_error() -> None:
     assert len(drawn.heads) == 2
     FigureCanvasAgg(drawn.line.get_figure()).draw()  # type: ignore[arg-type, no-untyped-call]
     assert list(drawn.route.points) == [(2, 0.5), (2, 0.5)]
+
+
+class TestEdgeLabels:
+    def test_no_label_draws_no_text(self) -> None:
+        _, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b")))
+        assert drawn.label is None
+
+    def test_straight_label_is_centred_on_the_line(self) -> None:
+        result, (drawn,) = _draw_edges(
+            _edge_diagram(Edge(src="a", dst="b", label="train"))
+        )
+        assert drawn.label is not None
+        right = anchor(result.box("a"), "right")
+        left = anchor(result.box("b"), "left")
+        middle = ((right[0] + left[0]) / 2, right[1])
+        assert drawn.label.get_position() == pytest.approx(middle)
+        assert drawn.label.get_text() == "train"
+        assert drawn.label.get_horizontalalignment() == "center"
+        assert drawn.label.get_verticalalignment() == "center"
+
+    def test_elbow_label_is_on_the_longest_segment(self) -> None:
+        diagram = Diagram(
+            root=Row(
+                align="start",
+                gap=1,
+                children=[
+                    Box(id="a", label="a", width=1, height=1),
+                    Box(id="b", label="b", width=1, height=9),
+                ],
+            ),
+            edges=[Edge(src="a", dst="b", exit="bottom", entry="left", label="go")],
+        )
+        _, (drawn,) = _draw_edges(diagram)
+        assert drawn.label is not None
+        # Down 3.5 units from a's bottom (y 1) to b's middle (y 4.5), then 1
+        # unit across into b.
+        assert drawn.label.get_position() == pytest.approx((0.5, 2.75))
+        assert drawn.label.get_position() == pytest.approx(
+            label_point(drawn.route.points)
+        )
+
+    def test_style_follows_the_edge_and_theme(self) -> None:
+        edge = Edge(src="a", dst="b", label="x", color="#16A34A")
+        _, (drawn,) = _draw_edges(_edge_diagram(edge))
+        assert drawn.label is not None
+        assert to_rgba(drawn.label.get_color()) == to_rgba("#16A34A")
+        assert drawn.label.get_fontsize() == LIGHT.edge_label_size
+        assert drawn.label.get_zorder() == Z_EDGE_LABEL
+        assert drawn.label.get_fontfamily() == [LIGHT.font_family]
+
+    def test_pad_is_white_on_a_transparent_figure(self) -> None:
+        _, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b", label="x")))
+        assert drawn.label is not None
+        pad = drawn.label.get_bbox_patch()
+        assert pad is not None
+        assert pad.get_facecolor() == pytest.approx(to_rgba("white"))
+        assert pad.get_boxstyle().pad == EDGE_LABEL_PAD  # type: ignore[attr-defined]
+
+    def test_pad_uses_the_theme_background(self) -> None:
+        theme = LIGHT.model_copy(update={"background": "#0B1220"})
+        diagram = _edge_diagram(Edge(src="a", dst="b", label="x")).model_copy(
+            update={"theme": theme}
+        )
+        _, (drawn,) = _draw_edges(diagram)
+        assert drawn.label is not None
+        pad = drawn.label.get_bbox_patch()
+        assert pad is not None
+        assert pad.get_facecolor() == pytest.approx(to_rgba("#0B1220"))
+
+    def test_label_text_is_not_mathtext(self) -> None:
+        _, (drawn,) = _draw_edges(_edge_diagram(Edge(src="a", dst="b", label="$1m")))
+        assert drawn.label is not None
+        assert drawn.label._parse_math is False  # type: ignore[attr-defined]
+
+    def test_render_draws_labels_above_everything(self) -> None:
+        diagram = _edge_diagram(Edge(src="a", dst="b", label="train"))
+        (axes,) = diagram.render().axes
+        (text,) = [t for t in axes.texts if t.get_text() == "train"]
+        assert text.get_zorder() > max(a.get_zorder() for a in axes.patches)

@@ -14,6 +14,7 @@ from flowgram.edges import (
     anchor,
     choose_sides,
     facing_side,
+    label_point,
     route,
     route_between,
 )
@@ -239,3 +240,23 @@ class TestRoute:
     def test_unknown_box_is_a_key_error(self) -> None:
         with pytest.raises(KeyError, match="no box has id 'nope'"):
             route(Edge(src="data", dst="nope"), layout(_pipeline()))
+
+
+class TestLabelPoint:
+    def test_straight_edge_label_is_at_the_middle(self) -> None:
+        assert label_point(((0, 0), (4, 2))) == (2, 1)
+
+    def test_elbow_label_is_on_the_longest_segment(self) -> None:
+        # Segments: 1 across, 5 down, 1 across.
+        assert label_point(((0, 0), (1, 0), (1, 5), (2, 5))) == (1, 2.5)
+
+    def test_ties_go_to_the_first_segment(self) -> None:
+        assert label_point(((0, 0), (2, 0), (2, 2))) == (1, 0)
+
+    def test_degenerate_polylines_give_the_first_point(self) -> None:
+        assert label_point(((3, 4),)) == (3, 4)
+        assert label_point(((3, 4), (3, 4))) == (3, 4)
+
+    def test_routed_elbow_label_sits_on_its_middle_segment(self) -> None:
+        points = route_between(A, "right", (4, 6), "left")
+        assert label_point(points) == (2, 3)
