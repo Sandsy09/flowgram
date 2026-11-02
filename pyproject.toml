@@ -124,6 +124,12 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--import-mode=importlib",
+    # Snapshot tests are opt-in: run them with `poe test:snapshots`.
+    "-m",
+    "not snapshot",
+]
+markers = [
+    "snapshot: image snapshot test, Linux only (run with poe test:snapshots)",
 ]
 
 # -----------------------------------------------------------------------------
@@ -145,6 +151,8 @@ docs = "mkdocs serve"
 notebook = "jupyter lab"
 "notebook:check" = "python scripts/check_notebooks.py"
 "typecheck:pyright" = "pyright"
+"test:snapshots" = "pytest -m snapshot"
+"snapshots:update" = { cmd = "pytest -m snapshot", env = { FLOWGRAM_UPDATE_SNAPSHOTS = "1" } }
 check = [
     "lock:check",
     "format:check",
