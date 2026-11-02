@@ -4,7 +4,7 @@ import dataclasses
 
 import pytest
 
-from flowgram import Box, Column, Row, Spacer, Theme
+from flowgram import Box, Column, Diagram, Edge, Row, Spacer, Theme
 from flowgram._text import measure_text
 from flowgram.components import Align, Side
 from flowgram.layout import (
@@ -14,6 +14,7 @@ from flowgram.layout import (
     Rect,
     Size,
     box_size,
+    layout,
     node_rects,
     node_sizes,
 )
@@ -389,3 +390,92 @@ class TestNodeRects:
             for i, a in enumerate(group):
                 for b in group[i + 1 :]:
                     assert not _overlap(a, b)
+
+
+class TestLayoutEntryPoint:
+    """Milestone 2 gate: nested rows and columns lay out with no drawing."""
+
+    def test_spec_example_pipeline(self) -> None:
+        diagram = Diagram(
+            title="Model training pipeline",
+            root=Row(
+                gap=2,
+                children=[
+                    Box(id="data", label="Raw data", role="muted"),
+                    Column(
+                        gap=1,
+                        children=[
+                            Box(id="clean", label="Clean", subtitle="impute, clip"),
+                            Box(id="feats", label="Features"),
+                        ],
+                    ),
+                    Box(id="model", label="Model", role="accent"),
+                ],
+            ),
+            edges=[
+                Edge(src="data", dst="clean"),
+                Edge(src="data", dst="feats"),
+                Edge(src="clean", dst="model", label="train"),
+                Edge(src="feats", dst="model", style="dashed"),
+            ],
+        )
+        result = layout(diagram)
+        data, clean, feats, model = (
+            result.box(i) for i in ("data", "clean", "feats", "model")
+        )
+        column = result.rect((1,))
+        assert column.x == pytest.approx(data.right + 2)
+        assert model.x == pytest.approx(column.right + 2)
+        assert feats.y == pytest.approx(clean.bottom + 1)
+        # align="center": every child of the row shares the row's centre line.
+        for rect in (data, column, model):
+            assert rect.center[1] == pytest.approx(result.height / 2)
+        assert result.width == pytest.approx(model.right)
+        assert result.height == pytest.approx(column.height)
+
+    def test_three_level_nesting_with_hand_checked_coordinates(self) -> None:
+        diagram = Diagram(
+            root=Column(
+                gap=1,
+                padding=0.5,
+                align="start",
+                children=[
+                    Box(id="title", label="t", width=6, height=1),
+                    Row(
+                        gap=0.5,
+                        align="end",
+                        children=[
+                            Box(id="left", label="l", width=2, height=3),
+                            Column(
+                                gap=0.25,
+                                children=[
+                                    Box(id="top", label="a", width=1, height=1),
+                                    Box(id="wide", label="b", width=3, height=1),
+                                ],
+                            ),
+                        ],
+                    ),
+                ],
+            )
+        )
+        result = layout(diagram)
+        assert (result.width, result.height) == (7, 6)
+        assert result.rect((1,)) == Rect(0.5, 2.5, 5.5, 3)
+        assert result.box("title") == Rect(0.5, 0.5, 6, 1)
+        assert result.box("left") == Rect(0.5, 2.5, 2, 3)
+        assert result.rect((1, 1)) == Rect(3, 3.25, 3, 2.25)
+        assert result.box("top") == Rect(4, 3.25, 1, 1)
+        assert result.box("wide") == Rect(3, 4.5, 3, 1)
+
+    def test_boxes_without_ids_are_reachable_by_path(self) -> None:
+        row = Row(children=[Box(label="a"), Spacer(size=1), Box(id="b", label="b")])
+        result = layout(Diagram(root=row))
+        assert dict(result.ids) == {"b": (2,)}
+        assert set(result.rects) == {(), (0,), (1,), (2,)}
+
+    def test_scale_changes_text_but_not_fixed_sizes(self) -> None:
+        root = Row(children=[Box(label=LONG), Box(label="x", width=2, height=1)])
+        small = layout(Diagram(root=root))
+        large = layout(Diagram(root=root, scale=2))
+        assert large.rect((0,)).width < small.rect((0,)).width
+        assert large.rect((1,)).width == small.rect((1,)).width == 2

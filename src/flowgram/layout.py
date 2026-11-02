@@ -7,6 +7,11 @@ downward; the renderer converts them to inches and flips y for matplotlib.
 Every node in the layout tree is addressed by its path: the tuple of child
 indices from the root, so the root is ``()`` and its second child is ``(1,)``.
 Boxes with an ``id`` can also be looked up by that id.
+
+``layout(diagram)`` runs every step: measure text, size boxes and containers
+bottom-up (applying ``uniform``), then position everything top-down. The
+steps are also available on their own as ``box_size``, ``node_sizes`` and
+``node_rects``.
 """
 
 from collections.abc import Mapping
@@ -15,6 +20,7 @@ from types import MappingProxyType
 
 from flowgram._text import measure_text
 from flowgram.components import Align, Box, Child, Column, Row, Side, Spacer
+from flowgram.diagram import Diagram
 from flowgram.theme import Theme
 
 NodePath = tuple[int, ...]
@@ -394,3 +400,36 @@ def node_rects(
     rects: dict[NodePath, Rect] = {(): Rect(0.0, 0.0, width, height)}
     _place(root, (), rects[()], sizes, theme, rects)
     return rects
+
+
+def _box_ids(node: Child, path: NodePath, ids: dict[str, NodePath]) -> None:
+    if isinstance(node, Box):
+        if node.id is not None:
+            ids[node.id] = path
+    elif isinstance(node, Row | Column):
+        for index, child in enumerate(node.children):
+            _box_ids(child, (*path, index), ids)
+
+
+def layout(diagram: Diagram) -> Layout:
+    """Lay out a diagram: size and position every node, in units.
+
+    Text is measured with the diagram's theme and ``scale``. Box and
+    container sizes are computed bottom-up, ``uniform`` groups are evened
+    out, and then every node is positioned top-down from the origin. Nothing
+    is drawn. Diagram padding and the title are left to the renderer, so the
+    result covers the content only.
+
+    Args:
+        diagram: The diagram to lay out.
+
+    Returns:
+        The content size, a ``Rect`` for every node by path, and the path of
+        every box that has an ``id``.
+    """
+    sizes = node_sizes(diagram.root, diagram.theme, diagram.scale)
+    rects = node_rects(diagram.root, sizes, diagram.theme)
+    ids: dict[str, NodePath] = {}
+    _box_ids(diagram.root, (), ids)
+    width, height = sizes[()]
+    return Layout(width=width, height=height, rects=rects, ids=ids)
