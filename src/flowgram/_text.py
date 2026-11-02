@@ -127,6 +127,33 @@ def _extent_points(
     return width / scale, height / scale
 
 
+def text_size(
+    text: str, size: float, weight: FontWeight, family: str, scale: float
+) -> tuple[float, float]:
+    """Measure one piece of text in units, such as a diagram title.
+
+    Lines break only at newline characters. Height counts every line at the
+    font's full line height, as in ``measure_text``.
+
+    Args:
+        text: The text to measure.
+        size: Font size in points.
+        weight: ``"normal"`` or ``"bold"``.
+        family: An installed font family.
+        scale: Inches per unit, as in ``Diagram.scale``.
+
+    Returns:
+        The text's ``(width, height)`` in units.
+
+    Raises:
+        ValueError: If the font family is not installed.
+    """
+    _check_font(family)
+    width, height = _extent_points(text, size, weight, family)
+    to_units = 1 / (POINTS_PER_INCH * scale)
+    return width * to_units, height * to_units
+
+
 def measure_text(
     label: str,
     theme: Theme,

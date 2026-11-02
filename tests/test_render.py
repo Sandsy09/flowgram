@@ -6,15 +6,17 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
+from matplotlib.text import Text
 from matplotlib.transforms import Bbox
 
 from flowgram import Box, Column, Diagram, RoleStyle, Row, Spacer, Theme
 from flowgram._base import TextAlign
-from flowgram._text import measure_text
+from flowgram._text import POINTS_PER_INCH, TIER_GAP, measure_text, text_size
 from flowgram.layout import Layout, NodePath, Rect, layout
 from flowgram.render import (
     FIGURE_DPI,
     SVG_HASH_SALT,
+    TITLE_GAP,
     Z_BOX,
     Z_BOX_TEXT,
     Z_EDGE,
@@ -24,9 +26,11 @@ from flowgram.render import (
     box_look,
     draw_box,
     draw_boxes,
+    draw_title,
     frame,
     new_figure,
     rc_params,
+    title_band,
 )
 
 LIGHT = Theme.light()
@@ -349,3 +353,153 @@ class TestDrawBoxes:
 
 def test_z_order_puts_edges_under_boxes_and_labels_on_top() -> None:
     assert Z_EDGE < Z_BOX < Z_BOX_TEXT < Z_EDGE_LABEL
+
+
+def _titled(title: str | None, subtitle: str | None = None, **theme: object) -> Diagram:
+    return _two_boxes(
+        title=title,
+        subtitle=subtitle,
+        padding=0.5,
+        theme=LIGHT.model_copy(update=theme),
+    )
+
+
+def _title_size(text: str, theme: Theme = LIGHT) -> tuple[float, float]:
+    return text_size(text, theme.title_size, theme.title_weight, theme.font_family, 1)
+
+
+class TestTitleBand:
+    def test_no_title_means_no_band(self) -> None:
+        diagram = _titled(None)
+        assert title_band(diagram) is None
+        assert frame(diagram, layout(diagram)) == Frame(-0.5, -0.5, 6.5, 1.5)
+
+    def test_empty_title_means_no_band(self) -> None:
+        assert title_band(_titled("")) is None
+
+    def test_title_only(self) -> None:
+        band = title_band(_titled("Pipeline"))
+        assert band is not None
+        width, height = _title_size("Pipeline")
+        assert [line.text for line in band.lines] == ["Pipeline"]
+        assert (band.width, band.height) == (width, height)
+        assert band.gap == pytest.approx(LIGHT.title_size * TITLE_GAP / POINTS_PER_INCH)
+        (line,) = band.lines
+        assert (line.size, line.weight, line.top) == (LIGHT.title_size, "bold", 0)
+
+    def test_title_and_subtitle_stack_with_a_gap(self) -> None:
+        band = title_band(_titled("Pipeline", "Training and scoring"))
+        assert band is not None
+        title, subtitle = band.lines
+        gap = LIGHT.title_size * TIER_GAP / POINTS_PER_INCH
+        assert subtitle.top == pytest.approx(title.height + gap)
+        assert (subtitle.size, subtitle.weight) == (LIGHT.subtitle_size, "normal")
+        assert band.height == pytest.approx(subtitle.top + subtitle.height)
+        assert band.width == max(title.width, subtitle.width)
+
+    def test_subtitle_without_a_title(self) -> None:
+        band = title_band(_titled(None, "Just a note"))
+        assert band is not None
+        assert [line.text for line in band.lines] == ["Just a note"]
+
+    def test_band_follows_scale(self) -> None:
+        small = title_band(_titled("Pipeline"))
+        large = title_band(_titled("Pipeline").model_copy(update={"scale": 2}))
+        assert small is not None
+        assert large is not None
+        assert large.height == pytest.approx(small.height / 2)
+
+
+class TestTitleFrame:
+    def test_band_is_reserved_above_the_content(self) -> None:
+        diagram = _titled("Pipeline", "Training")
+        band = title_band(diagram)
+        assert band is not None
+        result = frame(diagram, layout(diagram))
+        assert result.top == pytest.approx(-0.5 - band.gap - band.height)
+        assert (result.left, result.right, result.bottom) == (-0.5, 6.5, 1.5)
+
+    @pytest.mark.parametrize(
+        ("align", "left_extra"), [("left", 0.0), ("center", 0.5), ("right", 1.0)]
+    )
+    def test_wide_title_widens_the_frame(
+        self, align: TextAlign, left_extra: float
+    ) -> None:
+        title = "A title that is much wider than the six units of content"
+        diagram = _titled(title, title_align=align)
+        result = frame(diagram, layout(diagram))
+        extra = _title_size(title)[0] - 6
+        assert extra > 0
+        assert result.width == pytest.approx(_title_size(title)[0] + 1)
+        assert result.left == pytest.approx(-0.5 - left_extra * extra)
+        assert result.right == pytest.approx(6.5 + (1 - left_extra) * extra)
+
+    def test_figure_grows_with_the_band(self) -> None:
+        plain = _titled(None)
+        titled = _titled("Pipeline")
+        band = title_band(titled)
+        assert band is not None
+        plain_figure, _ = new_figure(plain, frame(plain, layout(plain)))
+        titled_figure, _ = new_figure(titled, frame(titled, layout(titled)))
+        grown = titled_figure.get_size_inches()[1] - plain_figure.get_size_inches()[1]
+        assert grown == pytest.approx(band.height + band.gap)
+
+
+class TestDrawTitle:
+    def _draw(self, diagram: Diagram) -> tuple[Frame, tuple[Text, ...]]:
+        result = frame(diagram, layout(diagram))
+        _, axes = new_figure(diagram, result)
+        return result, draw_title(axes, diagram, result)
+
+    def test_nothing_is_drawn_without_a_title(self) -> None:
+        assert self._draw(_titled(None))[1] == ()
+
+    def test_title_and_subtitle_are_drawn_top_down(self) -> None:
+        diagram = _titled("Pipeline", "Training")
+        band = title_band(diagram)
+        assert band is not None
+        result, texts = self._draw(diagram)
+        assert [t.get_text() for t in texts] == ["Pipeline", "Training"]
+        assert [t.get_position()[1] for t in texts] == pytest.approx(
+            [result.top + 0.5 + line.top for line in band.lines]
+        )
+        assert [t.get_fontsize() for t in texts] == [
+            LIGHT.title_size,
+            LIGHT.subtitle_size,
+        ]
+        assert [t.get_fontweight() for t in texts] == ["bold", "normal"]
+
+    @pytest.mark.parametrize(
+        ("align", "x"), [("left", 0.0), ("center", 3.0), ("right", 6.0)]
+    )
+    def test_alignment_across_the_content(self, align: TextAlign, x: float) -> None:
+        _, texts = self._draw(_titled("Pipeline", title_align=align))
+        (text,) = texts
+        assert text.get_position()[0] == pytest.approx(x)
+        assert text.get_horizontalalignment() == align
+
+    def test_default_colour_is_the_default_role_text(self) -> None:
+        (text,) = self._draw(_titled("Pipeline"))[1]
+        assert to_rgba(text.get_color()) == to_rgba(LIGHT.roles["default"].text)
+
+    def test_title_colour_override(self) -> None:
+        (text,) = self._draw(_titled("Pipeline", title_color="#2563EB"))[1]
+        assert to_rgba(text.get_color()) == to_rgba("#2563EB")
+
+    @pytest.mark.parametrize("align", ["left", "center", "right"])
+    def test_title_stays_in_the_figure_above_the_content(
+        self, align: TextAlign
+    ) -> None:
+        title = "A title that is much wider than the six units of content"
+        diagram = _titled(title, "and a subtitle", title_align=align)
+        result = frame(diagram, layout(diagram))
+        figure, axes = new_figure(diagram, result)
+        texts = draw_title(axes, diagram, result)
+        content_top = axes.transData.transform((0, 0))[1]
+        width, height = figure.bbox.width, figure.bbox.height
+        for text in texts:
+            box = _extent(figure, text)
+            assert box.x0 >= -0.5
+            assert box.x1 <= width + 0.5
+            assert box.y1 <= height + 0.5
+            assert box.y0 >= content_top

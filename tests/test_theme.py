@@ -102,15 +102,32 @@ def test_text_styling_defaults() -> None:
     assert theme.eyebrow_size < theme.label_size
 
 
-@pytest.mark.parametrize("field", ["label_weight", "subtitle_weight", "eyebrow_weight"])
+def test_title_styling_defaults() -> None:
+    theme = Theme.light()
+    assert (theme.title_weight, theme.title_align, theme.title_color) == (
+        "bold",
+        "left",
+        None,
+    )
+
+
+@pytest.mark.parametrize(
+    "field", ["label_weight", "subtitle_weight", "eyebrow_weight", "title_weight"]
+)
 def test_unknown_font_weight_lists_the_choices(field: str) -> None:
     with pytest.raises(ValidationError, match="'normal' or 'bold'"):
         _theme(**{field: "heavy"})
 
 
-def test_unknown_text_align_is_rejected() -> None:
+@pytest.mark.parametrize("field", ["text_align", "title_align"])
+def test_unknown_alignment_is_rejected(field: str) -> None:
     with pytest.raises(ValidationError, match="'left', 'center' or 'right'"):
-        _theme(text_align="middle")
+        _theme(**{field: "middle"})
+
+
+def test_title_colour_is_checked() -> None:
+    with pytest.raises(ValidationError, match="title_color"):
+        _theme(title_color="not-a-colour")
 
 
 def test_eyebrow_size_must_be_positive() -> None:
