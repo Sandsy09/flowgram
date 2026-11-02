@@ -97,16 +97,22 @@ planned for later releases in the roadmap. Do not start them early.
 ## Next task: milestone 2, layout engine
 
 Done when layout unit tests pass for nested rows and columns with no drawing involved.
+The steps below are tracked as issues #2 to #8 and #40 in milestone 2. Start with #40
+and #2, which have no blockers.
 
-1. Measure text: the size of a label plus subtitle in units, using matplotlib's text
-   extents on an off-screen Agg canvas, converted by `Diagram.scale`.
+0. Box text styling (#40): add an eyebrow line, text alignment and font weights to the
+   spec models, before measuring depends on them.
+1. Measure text: the size of the eyebrow, label and subtitle tiers in units, using
+   matplotlib's text extents on an off-screen Agg canvas, converted by `Diagram.scale`.
 2. Size each `Box`: text size plus `theme.text_padding` on each side, clamped to
    `theme.min_box_width` and `theme.min_box_height`; fixed `width` / `height` win.
 3. Size containers bottom-up. A Row's width is its children's widths plus gaps plus
    padding, and its height is its tallest child. A Column is the transpose. A `gap` of
-   `None` means `theme.gap`. A `Spacer` adds its `size` along the parent's main axis.
+   `None` means `theme.gap`. A `Spacer` adds exactly its `size` along the parent's main
+   axis, with no gap on either side.
 4. Apply `uniform`: direct `Box` children without a fixed size take the group's
-   largest width and height. Nested containers and spacers are unaffected.
+   largest width and height. Fixed-size boxes keep their size and do not count towards
+   the largest. Nested containers and spacers are unaffected.
 5. Position everything top-down, aligning on the cross axis with `align`.
 6. Return positioned rectangles keyed by box `id` (and by position for boxes without
    one), ready for the renderer and for edge anchors in milestone 4.
