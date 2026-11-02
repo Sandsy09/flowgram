@@ -10,15 +10,15 @@ milestones and release gates. Decisions are recorded in `docs/adr/`.
 
 ## Status
 
-Milestone 1 (spec models and validation) is done. **Next: milestone 2, the layout
-engine.** Rendering does not exist yet, so the package has no `render()`, `draw()` or
-`save()` methods.
+Milestones 1 (spec models and validation) and 2 (layout engine) are done. **Next:
+milestone 3, the first render.** Rendering does not exist yet, so the package has no
+`render()`, `draw()` or `save()` methods.
 
 | # | Milestone | State |
 | --- | --- | --- |
 | 1 | Foundation: models and validation | Done |
-| 2 | Layout engine: text measuring, Row, Column, Spacer, `uniform`, positions | Next |
-| 3 | First render: boxes, `render()`, `draw(ax)` | Not started |
+| 2 | Layout engine: text measuring, Row, Column, Spacer, `uniform`, positions | Done |
+| 3 | First render: boxes, `render()`, `draw(ax)` | Next |
 | 4 | Edges: anchors, side choice, straight and elbow routing, labels | Not started |
 | 5 | Export and loading: `save()`, Jupyter display, YAML extra | Not started |
 | 6 | Release 0.1.0: gallery, README, API docs, PyPI | Not started |
@@ -32,6 +32,8 @@ src/flowgram/_base.py       Spec base model, Colour / Positive / NonNegative typ
 src/flowgram/theme.py       RoleStyle, Theme and the light / mono presets
 src/flowgram/components.py  Side, Box, Spacer, Row, Column, Edge, iter_boxes
 src/flowgram/diagram.py     Diagram root and cross-component validation
+src/flowgram/_text.py       Measure box text in units on an off-screen Agg canvas
+src/flowgram/layout.py      Rect, Layout, box and container sizing, positions, layout()
 tests/                      One test module per source module
 docs/design/                Spec and roadmap
 docs/adr/                   Architecture decision records
@@ -94,25 +96,18 @@ uv run poe docs:build              # docs, warnings are errors
 several edges along one side, auto-layout, a CLI, non-matplotlib backends. These are
 planned for later releases in the roadmap. Do not start them early.
 
-## Next task: milestone 2, layout engine
+## Next task: milestone 3, first render
 
-Done when layout unit tests pass for nested rows and columns with no drawing involved.
-The steps below are tracked as issues #2 to #8 and #40 in milestone 2. Start with #40
-and #2, which have no blockers.
+Done when a one-row diagram matches its stored snapshot. The steps are issues #9 to #13
+in milestone 3. #9 has no blockers and #10 needs only the layout engine.
 
-0. Box text styling (#40): add an eyebrow line, text alignment and font weights to the
-   spec models, before measuring depends on them.
-1. Measure text: the size of the eyebrow, label and subtitle tiers in units, using
-   matplotlib's text extents on an off-screen Agg canvas, converted by `Diagram.scale`.
-2. Size each `Box`: text size plus `theme.text_padding` on each side, clamped to
-   `theme.min_box_width` and `theme.min_box_height`; fixed `width` / `height` win.
-3. Size containers bottom-up. A Row's width is its children's widths plus gaps plus
-   padding, and its height is its tallest child. A Column is the transpose. A `gap` of
-   `None` means `theme.gap`. A `Spacer` adds exactly its `size` along the parent's main
-   axis, with no gap on either side.
-4. Apply `uniform`: direct `Box` children without a fixed size take the group's
-   largest width and height. Fixed-size boxes keep their size and do not count towards
-   the largest. Nested containers and spacers are unaffected.
-5. Position everything top-down, aligning on the cross axis with `align`.
-6. Return positioned rectangles keyed by box `id` (and by position for boxes without
-   one), ready for the renderer and for edge anchors in milestone 4.
+1. Snapshot harness (#9): opt-in `snapshot` tests, Linux only, baselines in
+   `tests/snapshots/`, run by the Snapshots workflow, which uploads the images when a
+   test fails.
+2. Figure builder (#10): a `Figure` built directly (no pyplot), sized from
+   `layout(diagram)` plus `Diagram.padding`, times `scale`, with a deterministic rc
+   context.
+3. Draw boxes (#11): rounded patches with role colours and per-box overrides, and the
+   eyebrow, label and subtitle placed from the `TextBlock` tiers of `measure_text`.
+4. Title band (#12): title and subtitle above the content, left-aligned by default.
+5. `Diagram.render()` and `Diagram.draw(ax)` (#13), gated by a one-row snapshot.
