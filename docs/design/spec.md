@@ -18,15 +18,22 @@ immutable spec and render it with matplotlib, without hand-placing every shape.
 | Containers | Row and Column are layout-only | No fill, border or title. A `Panel` comes after the MVP. |
 | Licence | MIT | |
 | Name | `flowgram` | Package and import name. Re-check PyPI availability at release. |
-| Spacer | In the MVP | Used for uneven alignment. |
-| Uniform sizing | `uniform` option on Row and Column | Equal sizing of direct `Box` children without a fixed size. |
+| Spacer | In the MVP | Used for uneven alignment. It has no gap on either side and adds exactly its `size`. |
+| Uniform sizing | `uniform` option on Row and Column | Equal sizing of direct `Box` children without a fixed size. Fixed-size boxes keep their size and do not count towards the group's largest size. |
 | Font sizes | Fixed, in points | They do not follow `scale`. Revisit if a need appears. |
 | Edge spreading | Not in 0.1 | Several edges on one side share an anchor until release 0.4. |
+| Box text | Eyebrow, label and subtitle tiers, with alignment and font weights | Cards like the reference diagram's are possible in 0.1. Group panels wait for 0.2. |
+| Title alignment | Left-aligned by default, configurable | |
+| Jupyter display | PNG by default, SVG on request | Colleagues work in Jupyter and paste into PowerPoint. |
+| Loading | Explicit `from_dict`, `from_json`, `from_yaml` and file variants | No format guessing from file extensions. |
+| Dependency floors | CI tests the lowest versions `pyproject.toml` allows | A stale floor fails CI rather than a user's install. |
+| Styling | Users control the look through their own `Theme` | No house style is built in beyond the presets. |
 
 ## Scope of 0.1
 
 In: `Diagram`, `Theme`, `Box`, `Edge`, `Row`, `Column`, `Spacer`; validation with
-readable errors; auto-sized boxes; automatic side choice with straight and elbow
+readable errors; auto-sized boxes with eyebrow, label and subtitle text, alignment and
+font weights; automatic side choice with straight and elbow
 routing; `Figure`, `draw(ax)` and `save()` to PNG, SVG and PDF; Jupyter display;
 loading from dict or JSON, and YAML as an optional extra.
 
@@ -71,20 +78,25 @@ spec.draw(ax)  # not built yet: milestone 3
 spec.save("pipeline.svg")  # not built yet: milestone 5
 ```
 
-Models are frozen. Build variants with `model_copy(update=...)`. Loading from dicts or
-JSON uses `Diagram.model_validate(data)` and `model_validate_json(text)`; dict input
-needs a `kind` marker on every component.
+Models are frozen. Build variants with `model_copy(update=...)`. Loading uses explicit
+constructors: `Diagram.from_dict(data)`, `from_json(text)` and `from_yaml(text)`, plus
+`from_json_file(path)` and `from_yaml_file(path)` (YAML needs the `yaml` extra). They
+wrap `model_validate` and `model_validate_json`. Dict input needs a `kind` marker on
+every component.
 
 ## Components
 
 - **Diagram:** `root` (Row or Column), `edges`, `theme`, `title`, `subtitle`,
   `scale` (inches per unit, default 1.0), `padding` (units, default 0.5).
 - **Theme:** `roles` (role name to fill, stroke and text colours; must include
-  `default`), typography in points, geometry in units, edge defaults, `background`.
+  `default`), typography (sizes in points, weights, default text alignment), geometry
+  in units, edge defaults, `background`.
   Presets: `Theme.light()` (default) and `Theme.mono()`.
-- **Box:** `label`, `subtitle`, `role`, `id`, `width`, `height`, and style overrides
-  `fill`, `stroke`, `text_color`, `line_width`, `corner_radius`. `id` is only needed if
-  an edge refers to the box.
+- **Box:** `label`, `subtitle`, `eyebrow`, `role`, `id`, `width`, `height`,
+  `text_align`, and style overrides `fill`, `stroke`, `text_color`, `eyebrow_color`,
+  `line_width`, `corner_radius`. `id` is only needed if an edge refers to the box.
+  Field names for text styling are settled in
+  [#40](https://github.com/Sandsy09/flowgram/issues/40).
 - **Edge:** `src`, `dst`, `exit`, `entry` (a `Side`, or `None` for automatic),
   `routing` (`auto`, `straight`, `elbow`), `label`, `style` (`solid`, `dashed`,
   `dotted`), `arrow` (`end`, `both`, `none`), `color`, `line_width`.
@@ -144,14 +156,17 @@ share a side of a box share one anchor; font size does not change with `scale`.
 
 ## Definition of done for 0.1
 
-- The existing ML flowchart is rebuilt in about 30 lines and looks the same or better.
+- The existing ML flowchart is rebuilt in about 30 lines, with the same layout and card
+  text (eyebrow, title, body, alignment, weights). Its titled group panels wait for
+  `Panel` in 0.2.
 - Three gallery examples render from the README: linear pipeline, branching model flow,
   nested row-and-column layout.
 - Every validation rule produces a readable error.
 - Unit tests cover validation, layout arithmetic and anchor and routing geometry.
 - Image snapshot tests cover the gallery, on Linux with the bundled font.
 - mypy strict and pyright pass; linting passes; `py.typed` ships.
-- CI covers the supported Python versions, plus a smoke test on macOS and Windows.
+- CI covers the supported Python versions, the lowest allowed dependency versions, and
+  a smoke test on macOS and Windows.
 - README covers install, quick start and gallery; API reference is generated from
   docstrings.
 - `LICENSE`, `CHANGELOG` and a pre-1.0 stability note are in the repo.
