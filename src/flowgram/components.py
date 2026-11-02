@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from flowgram._base import Colour, FrozenSeq, NonNegative, Positive, Spec
+from flowgram._base import Colour, FrozenSeq, NonNegative, Positive, Spec, TextAlign
 
 Align = Literal["start", "center", "end"]
 """Cross-axis alignment of children inside a Row or Column."""
@@ -18,21 +18,29 @@ Side = Literal["left", "right", "top", "bottom"]
 class Box(Spec):
     """A labelled rectangle, the basic node of a diagram.
 
-    Leave ``width`` and ``height`` unset to size the box from its text. Style
-    fields left as ``None`` fall back to the theme role named by ``role``.
+    Text is stacked top to bottom: an optional ``eyebrow``, the ``label``, then
+    an optional ``subtitle``. Leave ``width`` and ``height`` unset to size the
+    box from its text. Style fields left as ``None`` fall back to the theme
+    role named by ``role``, or to the theme itself.
 
     Attributes:
         label: Main text. Put a newline character where the line should break;
             text does not wrap on its own.
         id: Name that edges use to refer to this box. Only needed when an
             edge connects to it. Must be unique within a diagram.
-        subtitle: Smaller second line shown under the label.
+        subtitle: Smaller text shown under the label.
+        eyebrow: Short line shown above the label, such as a category or step
+            name.
         role: Name of the theme role that supplies colours.
         width: Fixed width in units, or ``None`` to size from the text.
         height: Fixed height in units, or ``None`` to size from the text.
+        text_align: Horizontal alignment of every line of text, or ``None`` for
+            the theme's ``text_align``.
         fill: Overrides the role's fill colour.
         stroke: Overrides the role's outline colour.
-        text_color: Overrides the role's text colour.
+        text_color: Overrides the role's text colour for the label and
+            subtitle.
+        eyebrow_color: Overrides the role's eyebrow colour.
         line_width: Overrides the theme's outline width, in points.
         corner_radius: Overrides the theme's corner radius, in units.
     """
@@ -41,12 +49,15 @@ class Box(Spec):
     label: str = Field(min_length=1)
     id: str | None = Field(default=None, min_length=1)
     subtitle: str | None = None
+    eyebrow: str | None = Field(default=None, min_length=1)
     role: str = "default"
     width: Positive | None = None
     height: Positive | None = None
+    text_align: TextAlign | None = None
     fill: Colour | None = None
     stroke: Colour | None = None
     text_color: Colour | None = None
+    eyebrow_color: Colour | None = None
     line_width: Positive | None = None
     corner_radius: NonNegative | None = None
 

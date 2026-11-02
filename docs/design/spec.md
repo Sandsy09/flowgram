@@ -88,15 +88,18 @@ every component.
 
 - **Diagram:** `root` (Row or Column), `edges`, `theme`, `title`, `subtitle`,
   `scale` (inches per unit, default 1.0), `padding` (units, default 0.5).
-- **Theme:** `roles` (role name to fill, stroke and text colours; must include
-  `default`), typography (sizes in points, weights, default text alignment), geometry
-  in units, edge defaults, `background`.
-  Presets: `Theme.light()` (default) and `Theme.mono()`.
+- **Theme:** `roles` (role name to fill, stroke and text colours, plus an optional
+  eyebrow colour that falls back to the text colour; must include `default`),
+  typography (sizes in points; `label_weight`, `subtitle_weight` and `eyebrow_weight`
+  as `normal` or `bold`, defaulting to bold, normal and bold; `text_align` defaulting
+  to `center`), geometry in
+  units, edge defaults, `background`. Presets: `Theme.light()` (default) and
+  `Theme.mono()`.
 - **Box:** `label`, `subtitle`, `eyebrow`, `role`, `id`, `width`, `height`,
-  `text_align`, and style overrides `fill`, `stroke`, `text_color`, `eyebrow_color`,
-  `line_width`, `corner_radius`. `id` is only needed if an edge refers to the box.
-  Field names for text styling are settled in
-  [#40](https://github.com/Sandsy09/flowgram/issues/40).
+  `text_align` (`left`, `center`, `right`, or `None` for the theme's), and style
+  overrides `fill`, `stroke`, `text_color`, `eyebrow_color`, `line_width`,
+  `corner_radius`. Text stacks top to bottom: eyebrow, label, subtitle. `id` is only
+  needed if an edge refers to the box.
 - **Edge:** `src`, `dst`, `exit`, `entry` (a `Side`, or `None` for automatic),
   `routing` (`auto`, `straight`, `elbow`), `label`, `style` (`solid`, `dashed`,
   `dotted`), `arrow` (`end`, `both`, `none`), `color`, `line_width`.
