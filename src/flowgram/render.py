@@ -11,14 +11,20 @@ wide is therefore ``n * scale`` inches wide, and text measured in points
 during layout fits the boxes it was measured for.
 """
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.patches import FancyBboxPatch
+from matplotlib.text import Text
 
+from flowgram._base import FontWeight, TextAlign
+from flowgram._text import LINE_SPACING, TierKind, measure_text
+from flowgram.components import Box, Child, Column, Row
 from flowgram.diagram import Diagram
-from flowgram.layout import Layout
+from flowgram.layout import Layout, NodePath, Rect
 from flowgram.theme import Theme
 
 if TYPE_CHECKING:
@@ -29,6 +35,18 @@ FIGURE_DPI = 100.0
 
 SVG_HASH_SALT = "flowgram"
 """Fixed salt for SVG element ids, so one diagram always gives the same SVG."""
+
+Z_EDGE = 1.0
+"""Edges sit under boxes, so a line that crosses a box is hidden by its fill."""
+
+Z_BOX = 2.0
+"""Box outlines and fills."""
+
+Z_BOX_TEXT = 3.0
+"""Box eyebrows, labels and subtitles, above their box."""
+
+Z_EDGE_LABEL = 4.0
+"""Edge labels, above everything so a crossing box never hides one."""
 
 
 def rc_params(theme: Theme) -> "dict[RcKeyType, Any]":
@@ -157,3 +175,178 @@ def new_figure(diagram: Diagram, frame: Frame) -> tuple[Figure, Axes]:
     axes = figure.add_axes((0.0, 0.0, 1.0, 1.0))
     setup_axes(axes, frame)
     return figure, axes
+
+
+@dataclass(frozen=True, slots=True)
+class BoxLook:
+    """The resolved style of one box: what is actually drawn.
+
+    Attributes:
+        fill: Background colour.
+        stroke: Outline colour.
+        text: Label and subtitle colour.
+        eyebrow: Eyebrow colour.
+        line_width: Outline width in points.
+        corner_radius: Corner radius in units.
+        text_align: Horizontal alignment of every line of text.
+    """
+
+    fill: str
+    stroke: str
+    text: str
+    eyebrow: str
+    line_width: float
+    corner_radius: float
+    text_align: TextAlign
+
+
+def box_look(box: Box, theme: Theme) -> BoxLook:
+    """Resolve a box's style from its overrides, its role and the theme.
+
+    Each field takes the box's own value when set, then the theme role's,
+    then the theme's. The eyebrow colour falls back to the role's eyebrow
+    colour and then to the box's text colour, so overriding ``text_color``
+    alone recolours all of the box's text.
+
+    Args:
+        box: The box to style. Its ``role`` must exist in ``theme``, which
+            ``Diagram`` validation guarantees.
+        theme: Supplies the role colours and defaults.
+
+    Returns:
+        The style to draw the box with.
+    """
+    role = theme.roles[box.role]
+    text = box.text_color or role.text
+    return BoxLook(
+        fill=box.fill or role.fill,
+        stroke=box.stroke or role.stroke,
+        text=text,
+        eyebrow=box.eyebrow_color or role.eyebrow or text,
+        line_width=theme.line_width if box.line_width is None else box.line_width,
+        corner_radius=(
+            theme.corner_radius if box.corner_radius is None else box.corner_radius
+        ),
+        text_align=theme.text_align if box.text_align is None else box.text_align,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class DrawnBox:
+    """The artists drawn for one box.
+
+    Attributes:
+        patch: The rounded rectangle.
+        texts: One text artist per tier present, top to bottom: eyebrow,
+            label, subtitle.
+    """
+
+    patch: FancyBboxPatch
+    texts: tuple[Text, ...]
+
+
+def _text_x(rect: Rect, align: TextAlign, inset: float) -> float:
+    if align == "left":
+        return rect.x + inset
+    if align == "right":
+        return rect.right - inset
+    return rect.center[0]
+
+
+def _tier_font(kind: TierKind, theme: Theme) -> tuple[float, FontWeight]:
+    fonts: dict[TierKind, tuple[float, FontWeight]] = {
+        "eyebrow": (theme.eyebrow_size, theme.eyebrow_weight),
+        "label": (theme.label_size, theme.label_weight),
+        "subtitle": (theme.subtitle_size, theme.subtitle_weight),
+    }
+    return fonts[kind]
+
+
+def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> DrawnBox:
+    """Draw one box and its text into ``axes``.
+
+    The box is a rounded rectangle filling ``rect``, with its corner radius
+    capped at half the shorter side. The text is measured exactly as layout
+    measured it and the stack of tiers is centred vertically in the box, each
+    tier at the offset the measurement gave it. Left- and right-aligned text
+    is inset by ``theme.text_padding``.
+
+    Args:
+        axes: Axes set up by ``setup_axes``, in layout units with y down.
+        box: The box to draw.
+        rect: Where the layout placed it.
+        theme: Supplies fonts, colours and defaults.
+        scale: Inches per unit, as in ``Diagram.scale``, used to measure the
+            text in units.
+
+    Returns:
+        The patch and text artists that were added.
+    """
+    look = box_look(box, theme)
+    radius = min(look.corner_radius, rect.width / 2, rect.height / 2)
+    style = f"round,pad=0,rounding_size={radius!r}" if radius > 0 else "square,pad=0"
+    patch = FancyBboxPatch(
+        (rect.x, rect.y),
+        rect.width,
+        rect.height,
+        boxstyle=style,
+        facecolor=look.fill,
+        edgecolor=look.stroke,
+        linewidth=look.line_width,
+        zorder=Z_BOX,
+    )
+    axes.add_patch(patch)
+
+    block = measure_text(
+        box.label, theme, scale, subtitle=box.subtitle, eyebrow=box.eyebrow
+    )
+    top = rect.y + (rect.height - block.height) / 2
+    x = _text_x(rect, look.text_align, theme.text_padding)
+    texts: list[Text] = []
+    for tier in block.tiers:
+        size, weight = _tier_font(tier.kind, theme)
+        texts.append(
+            axes.text(
+                x,
+                top + tier.top,
+                tier.text,
+                color=look.eyebrow if tier.kind == "eyebrow" else look.text,
+                fontfamily=theme.font_family,
+                fontsize=size,
+                fontweight=weight,
+                horizontalalignment=look.text_align,
+                multialignment=look.text_align,
+                verticalalignment="top",
+                linespacing=LINE_SPACING,
+                parse_math=False,
+                zorder=Z_BOX_TEXT,
+            )
+        )
+    return DrawnBox(patch=patch, texts=tuple(texts))
+
+
+def _boxes(node: Child, path: NodePath) -> Iterator[tuple[NodePath, Box]]:
+    if isinstance(node, Box):
+        yield path, node
+    elif isinstance(node, Row | Column):
+        for index, child in enumerate(node.children):
+            yield from _boxes(child, (*path, index))
+
+
+def draw_boxes(
+    axes: Axes, diagram: Diagram, layout: Layout
+) -> dict[NodePath, DrawnBox]:
+    """Draw every box of a diagram at its laid-out position.
+
+    Args:
+        axes: Axes set up by ``setup_axes``.
+        diagram: Supplies the boxes, theme and scale.
+        layout: The diagram's layout.
+
+    Returns:
+        The artists drawn for each box, keyed by node path.
+    """
+    return {
+        path: draw_box(axes, box, layout.rect(path), diagram.theme, diagram.scale)
+        for path, box in _boxes(diagram.root, ())
+    }

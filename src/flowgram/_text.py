@@ -95,23 +95,34 @@ def _extent_points(
 ) -> tuple[float, float]:
     """Return the ``(width, height)`` of ``text`` in points.
 
-    Width is the extent of the widest line as matplotlib lays it out. Height
-    comes from the font's line height instead of the inked glyphs, so every
-    line at a given size and weight is the same height whatever its letters,
-    on every matplotlib version (3.8 measures single lines by their ink).
+    Both come from matplotlib's own text layout, the same one that draws the
+    text later. Width is the extent of ``text`` itself. Height is the extent
+    of a stand-in with the same number of lines, each reading ``"lp"``
+    (matplotlib's reference line), so every line at a given size and weight
+    is the same height whatever its letters, on every matplotlib version.
+    Text is never parsed as mathtext, matching the renderer.
     """
     figure, canvas = _canvas()
     props = font_manager.FontProperties(family=family, size=size, weight=weight)
-    artist = Text(0, 0, text, fontproperties=props, linespacing=LINE_SPACING)
-    artist.set_figure(figure)
     # matplotlib's stubs leave FigureCanvasAgg.get_renderer unannotated.
     renderer = canvas.get_renderer()  # type: ignore[no-untyped-call]
-    width = artist.get_window_extent(renderer).width
-    # "lp" spans the font's ascender and descender; matplotlib uses the same
-    # string as its reference line height.
-    _, line_height, _ = renderer.get_text_width_height_descent("lp", props, False)
+
+    def extent(content: str) -> tuple[float, float]:
+        artist = Text(
+            0,
+            0,
+            content,
+            fontproperties=props,
+            linespacing=LINE_SPACING,
+            parse_math=False,
+        )
+        artist.set_figure(figure)
+        box = artist.get_window_extent(renderer)
+        return box.width, box.height
+
+    width, _ = extent(text)
     lines = text.count("\n") + 1
-    height = line_height * (1 + LINE_SPACING * (lines - 1))
+    _, height = extent("\n".join(["lp"] * lines))
     scale = _DPI / POINTS_PER_INCH
     return width / scale, height / scale
 
