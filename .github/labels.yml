@@ -1,0 +1,119 @@
+# Source of truth for the repository's labels, synced by the Labels workflow.
+# Labels missing from this file are deleted from GitHub on sync.
+#
+# Type labels have no prefix so the issue templates (bug, enhancement) and
+# Renovate (dependencies) use them directly. Every other group is prefixed.
+
+# Type: what kind of change. Matches the Conventional Commits types.
+- name: bug
+  color: "d73a4a"
+  description: Something isn't working
+- name: enhancement
+  color: "a2eeef"
+  description: New feature or request (feat)
+- name: documentation
+  color: "0075ca"
+  description: Docs, README, gallery or API reference (docs)
+- name: test
+  color: "bfd4f2"
+  description: Tests, snapshots or test tooling (test)
+- name: ci
+  color: "5319e7"
+  description: CI, release or repository automation (ci)
+- name: refactor
+  color: "c5def5"
+  description: Code change with no behaviour change (refactor)
+- name: chore
+  color: "ededed"
+  description: Maintenance, packaging or release chores (chore, build)
+- name: dependencies
+  color: "0366d6"
+  description: Dependency updates, usually from Renovate
+- name: performance
+  color: "fbca04"
+  description: Faster or lighter, same behaviour (perf)
+
+# Area: which part of the library.
+- name: "area: spec"
+  color: "1d76db"
+  description: Spec models, validation and the public API shape
+- name: "area: theme"
+  color: "1d76db"
+  description: Themes, roles, typography and presets
+- name: "area: layout"
+  color: "1d76db"
+  description: Text measuring, sizing and positioning
+- name: "area: render"
+  color: "1d76db"
+  description: Drawing boxes and figures with matplotlib
+- name: "area: edges"
+  color: "1d76db"
+  description: Anchors, side choice, routing and edge labels
+- name: "area: export"
+  color: "1d76db"
+  description: save(), file formats, determinism and Jupyter display
+- name: "area: loading"
+  color: "1d76db"
+  description: Loading specs from dict, JSON and YAML
+- name: "area: packaging"
+  color: "1d76db"
+  description: Package metadata, builds and PyPI releases
+
+# Priority.
+- name: "priority: high"
+  color: "b60205"
+  description: On the critical path for the current milestone
+- name: "priority: medium"
+  color: "e99695"
+  description: Needed for the milestone but not blocking others
+- name: "priority: low"
+  color: "f9d0c4"
+  description: Nice to have, or later releases
+
+# Size: the roadmap's rough scale.
+- name: "size: S"
+  color: "c2e0c6"
+  description: Small, about a sitting
+- name: "size: M"
+  color: "7fd18b"
+  description: Medium, a few sittings
+- name: "size: L"
+  color: "2ea44f"
+  description: Large, split it if it can be split
+
+# Status. Blocking is tracked with GitHub issue dependencies, not a label.
+- name: "status: needs-decision"
+  color: "d4c5f9"
+  description: A design choice must be made before work starts
+- name: "status: needs-info"
+  color: "d876e3"
+  description: Waiting on information from the author or reporter
+
+# Meta.
+- name: epic
+  color: "3e4b9e"
+  description: Tracks a release or a group of issues
+- name: breaking
+  color: "000000"
+  description: Changes the public API or output; needs a changelog entry
+- name: good first issue
+  color: "7057ff"
+  description: Good for newcomers
+- name: help wanted
+  color: "008672"
+  description: Extra attention is needed
+- name: question
+  color: "d876e3"
+  description: Further information is requested
+- name: accessibility
+  color: "f143ab"
+  description: Barrier affecting people with disabilities
+- name: duplicate
+  color: "cfd3d7"
+  description: This issue or pull request already exists
+- name: invalid
+  color: "e4e669"
+  description: This doesn't seem right
+- name: wontfix
+  color: "ffffff"
+  description: This will not be worked on

@@ -1,6 +1,6 @@
 # flowgram
 
-Reuable components, modular diagram builder
+Reusable components, modular diagram builder
 
 ## Installation
 
