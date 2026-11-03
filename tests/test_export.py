@@ -1,4 +1,7 @@
+import os
 import struct
+import subprocess
+import sys
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -7,7 +10,12 @@ import pytest
 from matplotlib.image import imread
 
 from flowgram import Box, Diagram, Row, Theme
-from flowgram.export import DEFAULT_DPI, EXPORT_FORMATS, export_format
+from flowgram.export import (
+    CREATOR,
+    DEFAULT_DPI,
+    EXPORT_FORMATS,
+    export_format,
+)
 from tests.conftest import spec_pipeline
 
 SVG = "{http://www.w3.org/2000/svg}"
@@ -156,3 +164,74 @@ def _strip_date(path: Path) -> list[str]:
         for line in path.read_text(encoding="utf-8").splitlines()
         if "dc:date" not in line
     ]
+
+
+@pytest.fixture(scope="module")
+def saved_elsewhere(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The spec pipeline in every format, saved by a fresh interpreter.
+
+    It runs with its own hash seed and a ``SOURCE_DATE_EPOCH``, which would
+    otherwise change the ids and dates in the files.
+    """
+    out = tmp_path_factory.mktemp("elsewhere")
+    code = (
+        "import sys; from tests.conftest import spec_pipeline; "
+        "[spec_pipeline().save(f'{sys.argv[1]}/there.{fmt}') "
+        "for fmt in ('png', 'svg', 'pdf')]"
+    )
+    env = {**os.environ, "PYTHONHASHSEED": "12345", "SOURCE_DATE_EPOCH": "12345"}
+    root = Path(__file__).parent.parent
+    subprocess.run(
+        [sys.executable, "-c", code, str(out)], check=True, env=env, cwd=root
+    )
+    return out
+
+
+class TestDeterminism:
+    @pytest.mark.parametrize("fmt", EXPORT_FORMATS)
+    def test_saving_twice_gives_the_same_bytes(self, tmp_path: Path, fmt: str) -> None:
+        first, second = tmp_path / f"a.{fmt}", tmp_path / f"b.{fmt}"
+        spec_pipeline().save(first)
+        spec_pipeline().save(second)
+        assert first.read_bytes() == second.read_bytes()
+
+    @pytest.mark.parametrize("fmt", EXPORT_FORMATS)
+    def test_other_processes_give_the_same_bytes(
+        self, tmp_path: Path, saved_elsewhere: Path, fmt: str
+    ) -> None:
+        here = tmp_path / f"here.{fmt}"
+        spec_pipeline().save(here)
+        assert (saved_elsewhere / f"there.{fmt}").read_bytes() == here.read_bytes()
+
+    def test_svg_salt_ignores_the_users_setting(self, tmp_path: Path) -> None:
+        plain, salted = tmp_path / "plain.svg", tmp_path / "salted.svg"
+        spec_pipeline().save(plain)
+        with mpl.rc_context({"svg.hashsalt": "something else"}):
+            spec_pipeline().save(salted)
+        assert salted.read_bytes() == plain.read_bytes()
+
+    @pytest.mark.parametrize("fmt", EXPORT_FORMATS)
+    def test_no_matplotlib_version_in_the_file(self, tmp_path: Path, fmt: str) -> None:
+        path = tmp_path / f"out.{fmt}"
+        _one_box().save(path)
+        assert mpl.__version__.encode() not in path.read_bytes()
+
+    def test_svg_metadata_has_no_date(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.svg"
+        _one_box().save(path)
+        text = path.read_text(encoding="utf-8")
+        assert "dc:date" not in text
+        assert f"<dc:title>{CREATOR}</dc:title>" in text
+
+    def test_pdf_metadata_has_no_date(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.pdf"
+        _one_box().save(path)
+        data = path.read_bytes()
+        assert b"/CreationDate" not in data
+        assert b"/Producer" not in data
+        assert b"/Creator (flowgram)" in data
+
+    def test_png_names_flowgram(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.png"
+        _one_box().save(path)
+        assert b"tEXtSoftware\x00flowgram" in path.read_bytes()

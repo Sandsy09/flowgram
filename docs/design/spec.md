@@ -165,7 +165,9 @@ share a side of a box share one anchor; font size does not change with `scale`.
   to 300 dpi, sharp on a full-width 16:9 slide on a 4K screen.
 - SVG text stays as text (`svg.fonttype = "none"`) so it can be edited downstream. An
   `embed_fonts` option converts text to paths.
-- Output is deterministic: fixed SVG hash salt, no timestamps in metadata.
+- Output is deterministic: fixed SVG hash salt, no timestamps in metadata. Files name
+  `flowgram` as their creator, without the matplotlib version, so two saves of one spec
+  give the same bytes on the same matplotlib and FreeType versions.
 - Default font is DejaVu Sans, which ships with matplotlib.
 - Python 3.11 or newer. Hard dependencies: `pydantic` (v2) and `matplotlib`. Optional
   extra: `yaml`. Fully typed.

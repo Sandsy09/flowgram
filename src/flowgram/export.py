@@ -3,12 +3,17 @@
 The file type comes from the path's extension. Saving renders the diagram
 afresh and writes it with the same ``rc_params`` as rendering, so the user's
 own matplotlib settings cannot change the file.
+
+Output is deterministic: saving the same diagram twice gives the same bytes,
+in any process. SVG ids use a fixed salt, and ``EXPORT_METADATA`` leaves out
+the dates and the matplotlib version that files would otherwise carry. The
+bytes can still change between matplotlib or FreeType versions.
 """
 
 import math
 import os
 from pathlib import Path
-from typing import IO, Literal, get_args
+from typing import IO, Any, Literal, get_args
 
 from matplotlib import rc_context
 from matplotlib.figure import Figure
@@ -29,6 +34,16 @@ A 16:9 slide is 13.33 inches wide, so a diagram filling it at 300 dpi is
 4000 pixels across: sharp on a 4K screen or projector, and in print. SVG and
 PDF are vector files and ignore it, except for any raster content.
 """
+
+CREATOR = "flowgram"
+"""The program named in each file's metadata, without a version."""
+
+EXPORT_METADATA: dict[ExportFormat, dict[str, Any]] = {
+    "png": {"Software": CREATOR},
+    "svg": {"Creator": CREATOR, "Date": None},
+    "pdf": {"Creator": CREATOR, "Producer": None, "CreationDate": None},
+}
+"""Metadata written into each file type. ``None`` leaves a key out."""
 
 
 def export_format(path: str | os.PathLike[str]) -> ExportFormat:
@@ -67,6 +82,8 @@ def write_figure(
 ) -> None:
     """Write a rendered diagram's figure to a file or binary stream.
 
+    The file's metadata is ``EXPORT_METADATA[fmt]``, so it holds no date.
+
     Args:
         figure: The figure from ``render(diagram)``.
         diagram: Supplies the theme for the render settings.
@@ -86,7 +103,13 @@ def write_figure(
     if embed_fonts:
         settings["svg.fonttype"] = "path"
     with rc_context(settings):
-        figure.savefig(target, format=fmt, dpi=dpi, transparent=transparent)
+        figure.savefig(
+            target,
+            format=fmt,
+            dpi=dpi,
+            transparent=transparent,
+            metadata=EXPORT_METADATA[fmt],
+        )
 
 
 def save(
