@@ -36,7 +36,7 @@ from flowgram.diagram import Diagram
 from flowgram.edges import Route, label_point, route
 from flowgram.layout import Layout, NodePath, Point, Rect
 from flowgram.layout import layout as compute_layout
-from flowgram.theme import Theme
+from flowgram.theme import Shadow, Theme
 
 if TYPE_CHECKING:
     from matplotlib.typing import RcKeyType
@@ -62,8 +62,14 @@ TITLE_GAP = 1.0
 FOOTNOTE_GAP = 1.5
 """Space between the content and the footnote, in footnote font sizes."""
 
+SHADOW_LAYERS = 4
+"""Overlapping layers that fade a soft shadow's edge."""
+
 Z_EDGE = 1.0
 """Edges sit under boxes, so a line that crosses a box is hidden by its fill."""
+
+Z_SHADOW = 1.5
+"""Box shadows, under their boxes and above edges."""
 
 Z_BOX = 2.0
 """Box outlines and fills."""
@@ -379,6 +385,7 @@ class BoxLook:
         corner_radius: Corner radius in units.
         text_align: Horizontal alignment of every line of text.
         text_valign: Vertical placement of the text in the box.
+        shadow: The shadow to draw under the box, or ``None`` for none.
     """
 
     fill: str
@@ -390,6 +397,15 @@ class BoxLook:
     corner_radius: float
     text_align: TextAlign
     text_valign: TextVAlign
+    shadow: Shadow | None
+
+
+def _shadow(box: Box, theme: Theme) -> Shadow | None:
+    if box.shadow is None:
+        return theme.shadow
+    if box.shadow:
+        return theme.shadow or Shadow()
+    return None
 
 
 def box_look(box: Box, theme: Theme) -> BoxLook:
@@ -399,7 +415,9 @@ def box_look(box: Box, theme: Theme) -> BoxLook:
     then the theme's. The eyebrow and subtitle colours each fall back to the
     role's own eyebrow or subtitle colour and then to the box's text colour,
     so overriding ``text_color`` alone recolours all of the box's text unless
-    its role gives the eyebrow or subtitle a colour of its own.
+    its role gives the eyebrow or subtitle a colour of its own. A box's
+    ``shadow`` of ``True`` uses the theme's shadow, or ``Shadow()`` when the
+    theme has none.
 
     Args:
         box: The box to style. Its ``role`` must exist in ``theme``, which
@@ -423,6 +441,7 @@ def box_look(box: Box, theme: Theme) -> BoxLook:
         ),
         text_align=theme.text_align if box.text_align is None else box.text_align,
         text_valign=(theme.text_valign if box.text_valign is None else box.text_valign),
+        shadow=_shadow(box, theme),
     )
 
 
@@ -434,10 +453,47 @@ class DrawnBox:
         patch: The rounded rectangle.
         texts: One text artist per non-empty line, top to bottom: the
             eyebrow's lines, then the label's, then the subtitle's.
+        shadow: The shadow's layers, innermost first. Empty when the box
+            has no shadow.
     """
 
     patch: FancyBboxPatch
     texts: tuple[Text, ...]
+    shadow: tuple[FancyBboxPatch, ...] = ()
+
+
+def _box_style(radius: float) -> str:
+    return f"round,pad=0,rounding_size={radius!r}" if radius > 0 else "square,pad=0"
+
+
+def _draw_shadow(
+    axes: Axes, rect: Rect, radius: float, shadow: Shadow
+) -> tuple[FancyBboxPatch, ...]:
+    """Draw a box's shadow as layers that grow outward and fade together.
+
+    Every layer has the same opacity, chosen so the area all layers cover
+    reaches ``shadow.alpha``. Each layer is larger than the last by an equal
+    share of ``shadow.softness``, so fewer layers cover the outer edge.
+    """
+    layers = 1 if shadow.softness == 0 else SHADOW_LAYERS
+    alpha = 1 - (1 - shadow.alpha) ** (1 / layers)
+    patches: list[FancyBboxPatch] = []
+    for index in range(layers):
+        grow = 0.0 if layers == 1 else shadow.softness * index / (layers - 1)
+        patch = FancyBboxPatch(
+            (rect.x + shadow.dx - grow, rect.y + shadow.dy - grow),
+            rect.width + 2 * grow,
+            rect.height + 2 * grow,
+            boxstyle=_box_style(radius + grow),
+            facecolor=shadow.color,
+            edgecolor="none",
+            linewidth=0,
+            alpha=alpha,
+            zorder=Z_SHADOW,
+        )
+        axes.add_patch(patch)
+        patches.append(patch)
+    return tuple(patches)
 
 
 def _text_x(rect: Rect, align: TextAlign, inset: float) -> float:
@@ -510,7 +566,8 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
     """Draw one box and its text into ``axes``.
 
     The box is a rounded rectangle filling ``rect``, with its corner radius
-    capped at half the shorter side. The text is measured exactly as layout
+    capped at half the shorter side. When the box's look has a shadow, it
+    is drawn first, under the box. The text is measured exactly as layout
     measured it, each tier at the offset the measurement gave it and each
     line on the baseline ``baselines`` gives it. The stack of
     tiers is centred vertically in the box, or starts ``theme.text_padding``
@@ -530,12 +587,14 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
     """
     look = box_look(box, theme)
     radius = min(look.corner_radius, rect.width / 2, rect.height / 2)
-    style = f"round,pad=0,rounding_size={radius!r}" if radius > 0 else "square,pad=0"
+    shadow = (
+        () if look.shadow is None else _draw_shadow(axes, rect, radius, look.shadow)
+    )
     patch = FancyBboxPatch(
         (rect.x, rect.y),
         rect.width,
         rect.height,
-        boxstyle=style,
+        boxstyle=_box_style(radius),
         facecolor=look.fill,
         edgecolor=look.stroke,
         linewidth=look.line_width,
@@ -566,7 +625,7 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
             theme=theme,
             scale=scale,
         )
-    return DrawnBox(patch=patch, texts=tuple(texts))
+    return DrawnBox(patch=patch, texts=tuple(texts), shadow=shadow)
 
 
 def _boxes(node: Child, path: NodePath) -> Iterator[tuple[NodePath, Box]]:

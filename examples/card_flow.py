@@ -9,13 +9,14 @@ formatting at 88 columns spreads it further. Run this file to write
 Body text is muted under a dark title with a role ``subtitle`` colour, and
 the tall cards keep their text at the top with looser line spacing. The
 diagram subtitle is larger and muted, apart from the card bodies, and a
-muted footnote sits under the cards. Not covered yet, and tracked as issues:
-group panels with badges, headings and captions (#32), and shadows (#69).
+muted footnote sits under the cards. The cards sit on a faint soft shadow.
+Not covered yet, and tracked as an issue: group panels with badges, headings
+and captions (#32).
 """
 
 from pathlib import Path
 
-from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
+from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Shadow, Spacer, Theme
 
 INK, MUTED, BLUE, GREEN = "#0F172A", "#475569", "#2563EB", "#16A34A"
 theme = Theme.light().model_copy(
@@ -32,6 +33,7 @@ theme = Theme.light().model_copy(
         "line_spacing": 1.35,
         "tier_gap": 0.5,
         "line_width": 1.0,
+        "shadow": Shadow(dy=0.08, alpha=0.08),
         "roles": {
             "default": RoleStyle(
                 fill="#F1F5F9", stroke="#E2E8F0", text=INK, subtitle=MUTED

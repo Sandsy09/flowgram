@@ -102,13 +102,15 @@ every component.
   default 0.3); the diagram title's `title_weight`, `title_align` and
   `title_color`, defaulting to bold, `left` and the default role's text
   colour), geometry in
-  units, edge defaults, `background`. Presets: `Theme.light()` (default) and
+  units, an optional `shadow` (a `Shadow` with offset, colour, opacity and
+  softness, `None` by default), edge defaults, `background`. Presets: `Theme.light()` (default) and
   `Theme.mono()`.
 - **Box:** `label`, `subtitle`, `eyebrow`, `role`, `id`, `width`, `height`,
   `text_align` (`left`, `center`, `right`, or `None` for the theme's),
   `text_valign` (`top`, `center`, or `None` for the theme's), and style
   overrides `fill`, `stroke`, `text_color`, `eyebrow_color`, `subtitle_color`,
-  `line_width`, `corner_radius`. Text stacks top to bottom: eyebrow, label, subtitle. `id` is only
+  `line_width`, `corner_radius`, and `shadow` (`True`, `False`, or `None` for
+  the theme's). Text stacks top to bottom: eyebrow, label, subtitle. `id` is only
   needed if an edge refers to the box.
 - **Edge:** `src`, `dst`, `exit`, `entry` (a `Side`, or `None` for automatic),
   `routing` (`auto`, `straight`, `elbow`), `label`, `style` (`solid`, `dashed`,

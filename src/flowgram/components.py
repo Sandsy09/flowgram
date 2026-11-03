@@ -59,6 +59,9 @@ class Box(Spec):
         subtitle_color: Overrides the role's subtitle colour.
         line_width: Overrides the theme's outline width, in points.
         corner_radius: Overrides the theme's corner radius, in units.
+        shadow: ``True`` to draw the theme's shadow, or the default
+            ``Shadow()`` when the theme has none; ``False`` for no shadow;
+            ``None`` to follow the theme.
     """
 
     kind: Literal["box"] = "box"
@@ -78,6 +81,7 @@ class Box(Spec):
     subtitle_color: Colour | None = None
     line_width: Positive | None = None
     corner_radius: NonNegative | None = None
+    shadow: bool | None = None
 
 
 class Spacer(Spec):

@@ -72,6 +72,7 @@ class TestBox:
         assert box.text_align is None
         assert box.text_valign is None
         assert box.eyebrow_color is None
+        assert box.shadow is None
 
     def test_three_text_tiers(self) -> None:
         box = Box(eyebrow="STEP 2", label="Health score", subtitle="Wear\nindex")

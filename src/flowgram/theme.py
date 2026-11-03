@@ -6,8 +6,10 @@ from pydantic import model_validator
 
 from flowgram._base import (
     Colour,
+    Finite,
     FontWeight,
     NonNegative,
+    Opacity,
     Positive,
     Spec,
     TextAlign,
@@ -36,6 +38,31 @@ class RoleStyle(Spec):
     text: Colour
     eyebrow: Colour | None = None
     subtitle: Colour | None = None
+
+
+class Shadow(Spec):
+    """A soft drop shadow under each box.
+
+    The shadow is the box's shape, offset and filled with a faint colour.
+    Its edge fades out over ``softness``, drawn as a few overlapping
+    layers, since matplotlib cannot blur. It sits under the box and above
+    edges, and is not counted in layout, so a large offset can reach into
+    the diagram's padding.
+
+    Attributes:
+        dx: Offset to the right, in units. Negative moves it left.
+        dy: Offset downward, in units. Negative moves it up.
+        color: Shadow colour.
+        alpha: Opacity where the shadow is fullest, from 0 to 1.
+        softness: Width of the faded edge, in units. 0 draws one
+            hard-edged shape.
+    """
+
+    dx: Finite = 0.04
+    dy: Finite = 0.06
+    color: Colour = "#0F172A"
+    alpha: Opacity = 0.12
+    softness: NonNegative = 0.06
 
 
 def _light_roles() -> dict[str, RoleStyle]:
@@ -106,6 +133,7 @@ class Theme(Spec):
             diagram subtitle's colour.
         line_width: Default box outline width in points.
         corner_radius: Default box corner radius in units.
+        shadow: Drop shadow under every box, or ``None`` for none.
         gap: Default space between children of a Row or Column, in units.
         text_padding: Space between a box's text and its border, in units.
         min_box_width: Smallest automatic box width in units.
@@ -142,6 +170,7 @@ class Theme(Spec):
 
     line_width: Positive = 1.5
     corner_radius: NonNegative = 0.15
+    shadow: Shadow | None = None
     gap: NonNegative = 1.0
     text_padding: NonNegative = 0.3
     min_box_width: Positive = 1.5

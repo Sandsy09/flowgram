@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from flowgram import RoleStyle, Theme
+from flowgram import RoleStyle, Shadow, Theme
 
 
 def _role() -> RoleStyle:
@@ -155,6 +155,38 @@ def test_title_colour_is_checked() -> None:
 def test_diagram_subtitle_styling_falls_back_by_default() -> None:
     theme = Theme.light()
     assert (theme.title_subtitle_size, theme.title_subtitle_color) == (None, None)
+
+
+def test_no_shadow_by_default() -> None:
+    assert Theme.light().shadow is None
+    assert Theme.mono().shadow is None
+
+
+def test_shadow_defaults_are_faint_and_soft() -> None:
+    shadow = Shadow()
+    assert (shadow.dx, shadow.dy, shadow.color) == (0.04, 0.06, "#0F172A")
+    assert (shadow.alpha, shadow.softness) == (0.12, 0.06)
+
+
+def test_shadow_loads_from_a_dict() -> None:
+    theme = _theme(shadow={"dx": -0.1, "alpha": 0.3})
+    assert theme.shadow == Shadow(dx=-0.1, alpha=0.3)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("alpha", 1.5),
+        ("alpha", -0.1),
+        ("softness", -0.1),
+        ("dx", float("inf")),
+        ("dy", float("nan")),
+        ("color", "not-a-colour"),
+    ],
+)
+def test_shadow_fields_are_checked(field: str, value: object) -> None:
+    with pytest.raises(ValidationError, match=field):
+        Shadow(**{field: value})  # type: ignore[arg-type]
 
 
 def test_footnote_styling_falls_back_by_default() -> None:
