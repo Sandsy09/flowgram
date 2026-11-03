@@ -115,6 +115,7 @@ Done when the definition of done in the spec is ticked and 0.1.0 is on PyPI.
      decision on the API before it starts.
    - Check exports in PowerPoint and settle the SVG font fallback (#85). The check is
      done by hand by the user.
+   - Write specs back out without defaults, keeping `kind` (#91).
 2. Gallery: linear pipeline, branching model flow, nested layout (#25).
 3. README (#26) and the docs site with user guide and API reference (#27).
 4. Package metadata (#28), then trusted publishing and a release candidate (#30).
