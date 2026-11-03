@@ -10,10 +10,11 @@ milestones and release gates. Decisions are recorded in `docs/adr/`.
 
 ## Status
 
-Milestones 1 to 4 (spec models, layout engine, first render, edges) are done.
-**Next: milestone 5, export and loading.** `Diagram.render()` and `Diagram.draw(ax)`
-draw boxes, edges, the title and the footnote, and `Diagram.save()` writes PNG, SVG
-and PDF. A diagram shows itself in Jupyter. Loading is not done yet.
+Milestones 1 to 5 (spec models, layout engine, first render, edges, export and
+loading) are done. **Next: milestone 6, release 0.1.0.** `Diagram.render()` and
+`Diagram.draw(ax)` draw a diagram, `Diagram.save()` writes byte-identical PNG, SVG and
+PDF, a diagram shows itself in Jupyter, and `Diagram.from_dict`, `from_json` and
+`from_yaml` (with file variants) load specs.
 
 | # | Milestone | State |
 | --- | --- | --- |
@@ -21,8 +22,8 @@ and PDF. A diagram shows itself in Jupyter. Loading is not done yet.
 | 2 | Layout engine: text measuring, Row, Column, Spacer, `uniform`, positions | Done |
 | 3 | First render: boxes, `render()`, `draw(ax)` | Done |
 | 4 | Edges: anchors, side choice, straight and elbow routing, labels | Done |
-| 5 | Export and loading: `save()`, Jupyter display, YAML extra | Next |
-| 6 | Release 0.1.0: gallery, README, API docs, PyPI | Not started |
+| 5 | Export and loading: `save()`, Jupyter display, YAML extra | Done |
+| 6 | Release 0.1.0: gallery, README, API docs, PyPI | Next |
 
 Update this table when a milestone lands.
 
@@ -38,6 +39,7 @@ src/flowgram/layout.py      Rect, Layout, box and container sizing, positions, l
 src/flowgram/edges.py       Anchors, side choice, straight and elbow routing, label point
 src/flowgram/render.py      Render settings, frame and title band, boxes, edges, render(), draw()
 src/flowgram/export.py      save() to PNG, SVG and PDF, fixed metadata, to_png/to_svg, Jupyter display
+src/flowgram/loading.py     from_dict, from_json, from_yaml and file variants; PyYAML imported on use
 tests/                      One test module per source module
 docs/design/                Spec and roadmap
 docs/adr/                   Architecture decision records
@@ -104,22 +106,20 @@ uv run poe docs:build              # docs, warnings are errors
 several edges along one side, auto-layout, a CLI, non-matplotlib backends. These are
 planned for later releases in the roadmap. Do not start them early.
 
-## Next task: milestone 5, export and loading
+## Next task: milestone 6, release 0.1.0
 
-Done when exports open correctly and re-render identically. The API check (#20) came
-first, as the roadmap asks; its fixes block the export and loading issues.
+Done when the definition of done in the spec is ticked and 0.1.0 is on PyPI.
 
-1. API fixes from the check, first:
-   - Separate subtitle colour for boxes (#65).
-   - Top-aligned box text, and `line_spacing` and `tier_gap` in the theme (#66).
-   - Diagram subtitle styled apart from box subtitles (#67).
-   - Diagram footnote under the content (#68).
-   - Soft drop shadow for boxes (#69).
-2. `Diagram.save(path, dpi, transparent)` to PNG, SVG and PDF (#21), then byte-identical
-   re-renders (#22).
-3. Jupyter display, PNG by default with SVG on request (#23).
-4. Loading with explicit `from_dict`, `from_json`, `from_yaml` and file variants (#24);
-   YAML behind the `yaml` extra.
+1. Fixes found while building milestone 5, first:
+   - Validate spec variants made with `model_copy(update=...)` (#88). Needs the user's
+     decision on the API before it starts.
+   - Check exports in PowerPoint and settle the SVG font fallback (#85). The check is
+     done by hand by the user.
+   - Write specs back out without defaults, keeping `kind` (#91).
+2. Gallery: linear pipeline, branching model flow, nested layout (#25).
+3. README (#26) and the docs site with user guide and API reference (#27).
+4. Package metadata (#28), then trusted publishing and a release candidate (#30).
+5. Definition-of-done audit (#29), then the 0.1.0 release (#31).
 
 `examples/card_flow.py` is the committed API check: a neutral rebuild of the user's
 reference slide. The reference itself is the user's work material: keep it and its text

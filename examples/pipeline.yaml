@@ -1,0 +1,30 @@
+# A branching training pipeline, loaded with Diagram.from_yaml_file.
+# Every component names its kind. Edges refer to boxes by id.
+title: Model training pipeline
+root:
+  kind: row
+  gap: 2
+  children:
+    - kind: box
+      id: data
+      label: Raw data
+      role: muted
+    - kind: column
+      gap: 1
+      children:
+        - kind: box
+          id: clean
+          label: Clean
+          subtitle: impute, clip
+        - kind: box
+          id: feats
+          label: Features
+    - kind: box
+      id: model
+      label: Model
+      role: accent
+edges:
+  - {src: data, dst: clean}
+  - {src: data, dst: feats}
+  - {src: clean, dst: model, label: train}
+  - {src: feats, dst: model, style: dashed}

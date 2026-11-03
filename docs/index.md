@@ -40,6 +40,30 @@ spec = Diagram(
 fig = spec.render()  # a matplotlib Figure; spec.draw(ax) draws into an Axes
 ```
 
+Save it with `spec.save("pipeline.svg")`, which writes PNG, SVG or PDF by the file's
+extension. In Jupyter a diagram shows itself as a cell's result.
+
+Specs also load from data. Every component names its `kind`:
+
+```yaml
+# pipeline.yaml
+title: Model training pipeline
+root:
+  kind: row
+  children:
+    - {kind: box, id: data, label: Raw data, role: muted}
+    - {kind: box, id: model, label: Model, role: accent}
+edges:
+  - {src: data, dst: model}
+```
+
+```python
+spec = Diagram.from_yaml_file("pipeline.yaml")  # needs: pip install "flowgram[yaml]"
+spec = Diagram.from_json_file("pipeline.json")  # or from_dict, from_json, from_yaml
+```
+
+`examples/pipeline.yaml` holds the whole quick-start spec as YAML.
+
 Edges leave and arrive at the sides of their boxes that face each other, as a
 straight line when the anchors line up and an orthogonal elbow otherwise. Set
 `exit`, `entry` or `routing` on an `Edge` to choose for yourself.

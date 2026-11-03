@@ -14,6 +14,11 @@ dependencies = [
     "pydantic>=2.7",
 ]
 
+[project.optional-dependencies]
+yaml = [
+    "pyyaml>=6.0.1",
+]
+
 [project.urls]
 Repository = "https://github.com/Sandsy09/flowgram"
 Issues = "https://github.com/Sandsy09/flowgram/issues"
@@ -38,11 +43,13 @@ test = [
     "pytest>=8.3",
     "pytest-cov>=6,<8",
     "pytest-timeout>=2.3",
+    "pyyaml>=6.0.1",
 ]
 typecheck = [
     "mypy>=1.14",
     "pyright>=1.1.390,<2",
     "ty>=0.0.95",
+    "types-pyyaml>=6.0.12",
 ]
 docs = [
     "mkdocs>=1.6,<2",
