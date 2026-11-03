@@ -23,6 +23,8 @@ jobs:
   smoke:
     name: Smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Runs take about a minute. Without a limit a hung job holds for six hours.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -45,6 +47,7 @@ jobs:
   minimum:
     name: Minimum dependencies
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 

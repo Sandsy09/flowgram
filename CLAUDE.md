@@ -70,6 +70,8 @@ uv run poe docs:build              # docs, warnings are errors
   PyYAML is an optional extra, not a hard dependency.
 - The core stays in Python (ADR 0005). Do not add a compiled extension or a Rust
   renderer without a new ADR that supersedes it.
+- Each test has a 60 second limit (`pytest-timeout`, thread method). A hang dumps the
+  stack of every thread and fails the run. Fix a slow test rather than raising the limit.
 
 ## Workflow
 
