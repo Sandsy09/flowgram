@@ -372,7 +372,8 @@ class TestDrawBox:
         assert [t.get_position()[1] for t in texts] == pytest.approx(
             [top + tier.top for tier in block.tiers]
         )
-        assert all(t.get_linespacing() == theme.line_spacing for t in texts)
+        # Older matplotlib has no getter for the line spacing.
+        assert all(t._linespacing == theme.line_spacing for t in texts)  # type: ignore[attr-defined]
 
     @pytest.mark.parametrize(
         ("align", "x"),
