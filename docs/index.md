@@ -1,12 +1,21 @@
 # flowgram
 
-Reusable components, modular diagram builder
+Presentation-quality diagrams from a short Python spec.
 
-## Installation
+You describe boxes, the rows and columns they sit in, and the edges between them.
+flowgram sizes everything to fit its text, lines it up, routes the edges and draws
+the result with matplotlib, ready for a slide, a report or a notebook.
+
+![A branching model flow drawn by flowgram](gallery/branching_flow.svg)
+
+## Install
 
 ```bash
-uv add git+https://github.com/Sandsy09/flowgram
+pip install flowgram
 ```
+
+Loading YAML specs needs the `yaml` extra: `pip install "flowgram[yaml]"`.
+flowgram needs Python 3.11 or newer.
 
 ## Quick start
 
@@ -37,49 +46,23 @@ spec = Diagram(
     ],
 )
 
-fig = spec.render()  # a matplotlib Figure; spec.draw(ax) draws into an Axes
+spec.save("pipeline.png")  # or .svg, or .pdf
 ```
 
-Save it with `spec.save("pipeline.svg")`, which writes PNG, SVG or PDF by the file's
-extension. In Jupyter a diagram shows itself as a cell's result.
+In Jupyter, put `spec` last in a cell and the diagram shows itself.
 
-Specs also load from data. Every component names its `kind`:
+## Where next
 
-```yaml
-# pipeline.yaml
-title: Model training pipeline
-root:
-  kind: row
-  children:
-    - {kind: box, id: data, label: Raw data, role: muted}
-    - {kind: box, id: model, label: Model, role: accent}
-edges:
-  - {src: data, dst: model}
-```
+- [Concepts](guide/concepts.md): the spec tree, edges, checking and units.
+- [Layout](guide/layout.md): box sizes, rows, columns, spacers and `uniform`.
+- [Edges](guide/edges.md): sides, routes, labels and styles.
+- [Themes](guide/themes.md): roles, presets and making your own.
+- [Export](guide/export.md): PNG, SVG and PDF, and identical files.
+- [Loading specs](guide/loading.md): JSON and YAML.
+- [Jupyter and PowerPoint](guide/jupyter-and-powerpoint.md): display formats and
+  slides.
+- [Known limits](guide/limits.md) in 0.1.
+- [Gallery](gallery/index.md) and the [API reference](reference.md).
 
-```python
-spec = Diagram.from_yaml_file("pipeline.yaml")  # needs: pip install "flowgram[yaml]"
-spec = Diagram.from_json_file("pipeline.json")  # or from_dict, from_json, from_yaml
-```
-
-`examples/pipeline.yaml` holds the whole quick-start spec as YAML.
-
-Edges leave and arrive at the sides of their boxes that face each other, as a
-straight line when the anchors line up and an orthogonal elbow otherwise. Set
-`exit`, `entry` or `routing` on an `Edge` to choose for yourself.
-
-## Known limits in 0.1
-
-- **Edges do not avoid boxes.** An edge between two boxes takes the direct
-  straight or elbow route, even when a third box is in the way. The box hides
-  the part of the line that crosses it. Rearrange the layout, or set `exit`,
-  `entry` and `routing` to send the edge another way.
-- **Edges on one side of a box share one anchor**, at the middle of that side.
-  Several edges leaving the same side start from the same point and overlap
-  until they turn.
-- **Text does not wrap.** Put `\n` in a label or subtitle where a line should
-  break.
-- **Font sizes do not follow `scale`.** They are in points, so a larger scale
-  gives more room around the same text.
-
-See the [API Reference](./reference.md).
+flowgram is before 1.0: a minor release may change the API or the spec format, so
+pin a minor version, such as `flowgram>=0.1,<0.2`.
