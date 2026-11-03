@@ -1,4 +1,4 @@
-"""Write a diagram to a PNG, SVG or PDF file.
+"""Write a diagram to a PNG, SVG or PDF file, or show it in Jupyter.
 
 The file type comes from the path's extension. Saving renders the diagram
 afresh and writes it with the same ``rc_params`` as rendering, so the user's
@@ -10,6 +10,7 @@ the dates and the matplotlib version that files would otherwise carry. The
 bytes can still change between matplotlib or FreeType versions.
 """
 
+import io
 import math
 import os
 from pathlib import Path
@@ -19,7 +20,7 @@ from matplotlib import rc_context
 from matplotlib.figure import Figure
 
 from flowgram.diagram import Diagram
-from flowgram.render import rc_params, render
+from flowgram.render import FIGURE_DPI, rc_params, render
 
 ExportFormat = Literal["png", "svg", "pdf"]
 """A file type that ``save`` can write."""
@@ -34,6 +35,20 @@ A 16:9 slide is 13.33 inches wide, so a diagram filling it at 300 dpi is
 4000 pixels across: sharp on a 4K screen or projector, and in print. SVG and
 PDF are vector files and ignore it, except for any raster content.
 """
+DISPLAY_DPI = 2 * FIGURE_DPI
+"""Resolution of the PNG a notebook shows.
+
+It is drawn at twice the size it is shown, so it stays sharp on high-density
+screens. The notebook is told the size to show it at, ``FIGURE_DPI`` pixels
+per inch, which matches a figure shown by matplotlib's inline backend.
+"""
+
+MIME_TYPES: dict[ExportFormat, str] = {
+    "png": "image/png",
+    "svg": "image/svg+xml",
+    "pdf": "application/pdf",
+}
+"""The media type of each file type."""
 
 CREATOR = "flowgram"
 """The program named in each file's metadata, without a version."""
@@ -155,3 +170,71 @@ def save(
         transparent=transparent,
         embed_fonts=embed_fonts,
     )
+
+
+def to_png(
+    diagram: Diagram, *, dpi: float = DEFAULT_DPI, transparent: bool = False
+) -> bytes:
+    """Render a diagram as PNG bytes, as ``save`` would write them.
+
+    Args:
+        diagram: The diagram to draw.
+        dpi: Pixels per inch.
+        transparent: Leave the background out.
+
+    Returns:
+        The PNG file's bytes.
+    """
+    buffer = io.BytesIO()
+    write_figure(
+        render(diagram), diagram, buffer, "png", dpi=dpi, transparent=transparent
+    )
+    return buffer.getvalue()
+
+
+def to_svg(
+    diagram: Diagram, *, transparent: bool = False, embed_fonts: bool = False
+) -> str:
+    """Render a diagram as SVG text, as ``save`` would write it.
+
+    Args:
+        diagram: The diagram to draw.
+        transparent: Leave the background out.
+        embed_fonts: Turn text into paths.
+
+    Returns:
+        The SVG document.
+    """
+    buffer = io.BytesIO()
+    write_figure(
+        render(diagram),
+        diagram,
+        buffer,
+        "svg",
+        transparent=transparent,
+        embed_fonts=embed_fonts,
+    )
+    return buffer.getvalue().decode("utf-8")
+
+
+def mimebundle(diagram: Diagram) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return what a notebook needs to show a diagram.
+
+    The format is ``diagram.display_format``. A PNG is drawn at
+    ``DISPLAY_DPI`` and comes with the size to show it at, so it appears at
+    the size matplotlib would show the figure, at twice the pixels.
+
+    Args:
+        diagram: The diagram to show.
+
+    Returns:
+        The data, keyed by media type, and its display metadata.
+    """
+    if diagram.display_format == "svg":
+        return {MIME_TYPES["svg"]: to_svg(diagram)}, {}
+    figure = render(diagram)
+    buffer = io.BytesIO()
+    write_figure(figure, diagram, buffer, "png", dpi=DISPLAY_DPI)
+    width, height = figure.get_size_inches() * FIGURE_DPI
+    size = {"width": round(width), "height": round(height)}
+    return {MIME_TYPES["png"]: buffer.getvalue()}, {MIME_TYPES["png"]: size}

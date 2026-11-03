@@ -3,7 +3,7 @@
 import os
 from collections import Counter
 from difflib import get_close_matches
-from typing import TYPE_CHECKING, Annotated, Self
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
@@ -37,6 +37,9 @@ class Diagram(Spec):
             caveat, aligned like the title.
         scale: Inches per abstract unit when the figure is built.
         padding: Margin around the content, in units.
+        display_format: How a notebook shows the diagram: ``"png"`` (the
+            default) or ``"svg"``. Files written by ``save`` are not
+            affected.
     """
 
     model_config = ConfigDict(hide_input_in_errors=True)
@@ -49,13 +52,15 @@ class Diagram(Spec):
     footnote: str | None = None
     scale: Positive = 1.0
     padding: NonNegative = 0.5
+    display_format: Literal["png", "svg"] = "png"
 
     def render(self) -> "Figure":
         """Draw the diagram into a new matplotlib figure.
 
         The figure is sized to fit the diagram, at ``scale`` inches per unit,
-        and is built without pyplot. In Jupyter it displays as a cell's
-        result. Write it to a file with ``save``.
+        and is built without pyplot. A diagram shows itself in Jupyter, so
+        call this only to change the figure or draw more into it. Write a
+        file with ``save``.
 
         Returns:
             A new figure holding the whole diagram.
@@ -108,6 +113,65 @@ class Diagram(Spec):
             transparent=transparent,
             embed_fonts=embed_fonts,
         )
+
+    def to_png(self, *, dpi: float | None = None, transparent: bool = False) -> bytes:
+        """Render the diagram as PNG bytes, the same as ``save`` writes.
+
+        Args:
+            dpi: Pixels per inch. ``None`` uses
+                ``flowgram.export.DEFAULT_DPI`` (300).
+            transparent: Leave the background out.
+
+        Returns:
+            The PNG file's bytes.
+
+        Raises:
+            ValueError: If ``dpi`` is not a positive number.
+        """
+        from flowgram.export import DEFAULT_DPI, to_png
+
+        return to_png(
+            self, dpi=DEFAULT_DPI if dpi is None else dpi, transparent=transparent
+        )
+
+    def to_svg(self, *, transparent: bool = False, embed_fonts: bool = False) -> str:
+        """Render the diagram as SVG text, the same as ``save`` writes.
+
+        In a notebook, ``IPython.display.SVG(diagram.to_svg())`` shows one
+        diagram as SVG. Set ``display_format="svg"`` to show it that way
+        every time.
+
+        Args:
+            transparent: Leave the background out.
+            embed_fonts: Turn text into paths.
+
+        Returns:
+            The SVG document.
+        """
+        from flowgram.export import to_svg
+
+        return to_svg(self, transparent=transparent, embed_fonts=embed_fonts)
+
+    def _repr_mimebundle_(
+        self, include: object = None, exclude: object = None
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Show the diagram as a notebook cell's result.
+
+        IPython and Jupyter call this. The diagram is drawn as a PNG, or as
+        an SVG when ``display_format`` is ``"svg"``. IPython itself is not
+        needed.
+
+        Args:
+            include: Media types the notebook asks for. Not used: the
+                notebook drops what it did not ask for.
+            exclude: Media types the notebook does not want. Not used.
+
+        Returns:
+            The image keyed by its media type, and display metadata.
+        """
+        from flowgram.export import mimebundle
+
+        return mimebundle(self)
 
     def draw(self, ax: "Axes") -> None:
         """Draw the diagram into an existing matplotlib axes.

@@ -13,9 +13,11 @@ from flowgram import Box, Diagram, Row, Theme
 from flowgram.export import (
     CREATOR,
     DEFAULT_DPI,
+    DISPLAY_DPI,
     EXPORT_FORMATS,
     export_format,
 )
+from flowgram.render import FIGURE_DPI
 from tests.conftest import spec_pipeline
 
 SVG = "{http://www.w3.org/2000/svg}"
@@ -235,3 +237,73 @@ class TestDeterminism:
         path = tmp_path / "out.png"
         _one_box().save(path)
         assert b"tEXtSoftware\x00flowgram" in path.read_bytes()
+
+
+class TestToBytes:
+    def test_png_matches_the_saved_file(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.png"
+        _one_box().save(path, dpi=50)
+        assert _one_box().to_png(dpi=50) == path.read_bytes()
+
+    def test_png_defaults_to_the_save_dpi(self) -> None:
+        data = _one_box().to_png()
+        assert struct.unpack(">II", data[16:24]) == (3 * DEFAULT_DPI, 2 * DEFAULT_DPI)
+
+    def test_png_can_be_transparent(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.png"
+        path.write_bytes(_one_box().to_png(dpi=10, transparent=True))
+        assert imread(path)[0, 0, 3] == 0
+
+    def test_svg_matches_the_saved_file(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.svg"
+        _one_box().save(path, embed_fonts=True)
+        assert _one_box().to_svg(embed_fonts=True) == path.read_text(encoding="utf-8")
+
+    def test_svg_can_be_transparent(self) -> None:
+        theme = Theme.light().model_copy(update={"background": "#FF0000"})
+        assert "#ff0000" in _one_box(theme=theme).to_svg()
+        assert "#ff0000" not in _one_box(theme=theme).to_svg(transparent=True)
+
+
+class TestNotebookDisplay:
+    def test_png_by_default(self) -> None:
+        diagram = _one_box()
+        assert diagram.display_format == "png"
+        data, metadata = diagram._repr_mimebundle_()
+        assert list(data) == ["image/png"]
+        assert data["image/png"] == diagram.to_png(dpi=DISPLAY_DPI)
+        assert metadata == {"image/png": {"width": 300, "height": 200}}
+
+    def test_png_is_drawn_at_twice_its_shown_size(self) -> None:
+        data, metadata = _one_box(scale=0.5)._repr_mimebundle_()
+        pixels = struct.unpack(">II", data["image/png"][16:24])
+        shown = metadata["image/png"]
+        assert pixels == (2 * shown["width"], 2 * shown["height"]) == (300, 200)
+        assert DISPLAY_DPI == 2 * FIGURE_DPI
+
+    def test_svg_on_request(self) -> None:
+        diagram = _one_box(display_format="svg")
+        data, metadata = diagram._repr_mimebundle_()
+        assert data == {"image/svg+xml": diagram.to_svg()}
+        assert metadata == {}
+
+    def test_unknown_format_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="display_format"):
+            _one_box(display_format="jpg")
+
+    def test_display_format_round_trips(self) -> None:
+        diagram = _one_box(display_format="svg")
+        assert Diagram.model_validate_json(diagram.model_dump_json()) == diagram
+
+    def test_ipython_shows_the_image(self) -> None:
+        formatters = pytest.importorskip("IPython.core.formatters")
+        data, metadata = formatters.DisplayFormatter().format(_one_box())
+        assert {"image/png", "text/plain"} <= set(data)
+        assert metadata["image/png"] == {"width": 300, "height": 200}
+
+    def test_no_figures_are_left_with_pyplot(self) -> None:
+        pyplot = pytest.importorskip("matplotlib.pyplot")
+        before = pyplot.get_fignums()
+        _one_box()._repr_mimebundle_()
+        _one_box(display_format="svg")._repr_mimebundle_()
+        assert pyplot.get_fignums() == before
