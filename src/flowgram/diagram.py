@@ -2,6 +2,7 @@
 
 import os
 from collections import Counter
+from collections.abc import Mapping
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 
@@ -26,6 +27,8 @@ class Diagram(Spec):
     Placement comes from the ``root`` tree of rows and columns. Edges are a
     flat list that refers to boxes by ``id`` wherever they sit in the tree.
     Construction checks the whole spec and reports every problem at once.
+    Load a spec from data with ``from_dict``, ``from_json`` or ``from_yaml``,
+    or their file variants.
 
     Attributes:
         root: The top-level Row or Column.
@@ -53,6 +56,107 @@ class Diagram(Spec):
     scale: Positive = 1.0
     padding: NonNegative = 0.5
     display_format: Literal["png", "svg"] = "png"
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "Diagram":
+        """Build a diagram from plain Python data, such as ``model_dump()`` gives.
+
+        Every component names its ``kind``: ``"row"``, ``"column"``,
+        ``"box"`` or ``"spacer"``. The same checks run as when building the
+        spec in Python.
+
+        Args:
+            data: The spec as nested dicts and lists.
+
+        Returns:
+            The checked diagram.
+
+        Raises:
+            pydantic.ValidationError: If the data is not a valid spec.
+        """
+        from flowgram.loading import from_dict
+
+        return from_dict(data)
+
+    @classmethod
+    def from_json(cls, text: str | bytes) -> "Diagram":
+        """Build a diagram from a JSON document, such as ``model_dump_json()`` gives.
+
+        Args:
+            text: The JSON text.
+
+        Returns:
+            The checked diagram.
+
+        Raises:
+            pydantic.ValidationError: If the text is not valid JSON or not a
+                valid spec.
+        """
+        from flowgram.loading import from_json
+
+        return from_json(text)
+
+    @classmethod
+    def from_yaml(cls, text: str) -> "Diagram":
+        """Build a diagram from a YAML document.
+
+        Needs the ``yaml`` extra: ``pip install "flowgram[yaml]"``. The
+        document is read with PyYAML's safe loader.
+
+        Args:
+            text: The YAML text, with a mapping at the top like a JSON spec.
+
+        Returns:
+            The checked diagram.
+
+        Raises:
+            ImportError: If PyYAML is not installed.
+            yaml.YAMLError: If the text is not valid YAML.
+            pydantic.ValidationError: If the document is not a valid spec.
+        """
+        from flowgram.loading import from_yaml
+
+        return from_yaml(text)
+
+    @classmethod
+    def from_json_file(cls, path: str | os.PathLike[str]) -> "Diagram":
+        """Build a diagram from a UTF-8 JSON file.
+
+        Args:
+            path: The file to read.
+
+        Returns:
+            The checked diagram.
+
+        Raises:
+            OSError: If the file cannot be read.
+            pydantic.ValidationError: If the file is not a valid spec.
+        """
+        from flowgram.loading import from_json_file
+
+        return from_json_file(path)
+
+    @classmethod
+    def from_yaml_file(cls, path: str | os.PathLike[str]) -> "Diagram":
+        """Build a diagram from a UTF-8 YAML file.
+
+        Needs the ``yaml`` extra: ``pip install "flowgram[yaml]"``.
+
+        Args:
+            path: The file to read.
+
+        Returns:
+            The checked diagram.
+
+        Raises:
+            ImportError: If PyYAML is not installed.
+            OSError: If the file cannot be read.
+            yaml.YAMLError: If the file is not valid YAML.
+            pydantic.ValidationError: If the file is not a valid spec.
+        """
+        from flowgram.loading import from_yaml_file
+
+        return from_yaml_file(path)
 
     def render(self) -> "Figure":
         """Draw the diagram into a new matplotlib figure.
