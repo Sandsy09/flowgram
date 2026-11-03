@@ -10,7 +10,7 @@ import pytest
 from matplotlib.figure import Figure
 from matplotlib.patches import FancyBboxPatch
 
-from flowgram import Box, Diagram, Row
+from flowgram import Box, Diagram, Row, Shadow, Theme
 from tests.conftest import spec_pipeline
 
 SnapshotCheck = Callable[[Figure, str], None]
@@ -58,3 +58,23 @@ def test_one_row(snapshot: SnapshotCheck) -> None:
 def test_branching_pipeline(snapshot: SnapshotCheck) -> None:
     """Milestone 4 gate: the spec's branching pipeline with every edge drawn."""
     snapshot(spec_pipeline().render(), "branching_pipeline")
+
+
+@pytest.mark.snapshot
+def test_box_shadow(snapshot: SnapshotCheck) -> None:
+    """Soft shadows under rounded and square boxes, with one box opting out."""
+    theme = Theme.light().model_copy(
+        update={"background": "#F8FAFC", "shadow": Shadow(dx=0.05, dy=0.08)}
+    )
+    diagram = Diagram(
+        theme=theme,
+        footnote="The middle box turns its shadow off",
+        root=Row(
+            children=[
+                Box(label="Rounded", subtitle="theme shadow"),
+                Box(label="No shadow", role="muted", shadow=False),
+                Box(label="Square", role="accent", corner_radius=0),
+            ]
+        ),
+    )
+    snapshot(diagram.render(), "box_shadow")

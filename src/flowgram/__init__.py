@@ -4,7 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from flowgram.components import Box, Column, Edge, Row, Side, Spacer
 from flowgram.diagram import Diagram
-from flowgram.theme import RoleStyle, Theme
+from flowgram.theme import RoleStyle, Shadow, Theme
 
 try:
     __version__ = version("flowgram")
@@ -18,6 +18,7 @@ __all__ = [
     "Edge",
     "RoleStyle",
     "Row",
+    "Shadow",
     "Side",
     "Spacer",
     "Theme",

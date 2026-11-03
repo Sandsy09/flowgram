@@ -16,7 +16,17 @@ from matplotlib.text import Text
 from matplotlib.transforms import Bbox
 
 import flowgram
-from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
+from flowgram import (
+    Box,
+    Column,
+    Diagram,
+    Edge,
+    RoleStyle,
+    Row,
+    Shadow,
+    Spacer,
+    Theme,
+)
 from flowgram._base import FontWeight, TextAlign
 from flowgram._text import (
     POINTS_PER_INCH,
@@ -35,12 +45,14 @@ from flowgram.render import (
     EDGE_LABEL_PAD,
     FIGURE_DPI,
     FOOTNOTE_GAP,
+    SHADOW_LAYERS,
     SVG_HASH_SALT,
     TITLE_GAP,
     Z_BOX,
     Z_BOX_TEXT,
     Z_EDGE,
     Z_EDGE_LABEL,
+    Z_SHADOW,
     DrawnBox,
     DrawnEdge,
     Frame,
@@ -282,6 +294,24 @@ class TestBoxLook:
             assert role.subtitle is None
             assert box_look(Box(label="x", role=name), theme).subtitle == role.text
 
+    def test_no_shadow_by_default(self) -> None:
+        assert box_look(Box(label="x"), LIGHT).shadow is None
+
+    def test_theme_shadow_applies_to_every_box(self) -> None:
+        theme = LIGHT.model_copy(update={"shadow": Shadow(dx=0.2)})
+        assert box_look(Box(label="x"), theme).shadow == Shadow(dx=0.2)
+
+    def test_box_can_turn_the_theme_shadow_off(self) -> None:
+        theme = LIGHT.model_copy(update={"shadow": Shadow()})
+        assert box_look(Box(label="x", shadow=False), theme).shadow is None
+
+    def test_box_shadow_uses_the_theme_shadow(self) -> None:
+        theme = LIGHT.model_copy(update={"shadow": Shadow(dx=0.2)})
+        assert box_look(Box(label="x", shadow=True), theme).shadow == Shadow(dx=0.2)
+
+    def test_box_shadow_without_a_theme_shadow_uses_the_default(self) -> None:
+        assert box_look(Box(label="x", shadow=True), LIGHT).shadow == Shadow()
+
     def test_theme_alignment_applies_when_the_box_has_none(self) -> None:
         theme = LIGHT.model_copy(update={"text_align": "left", "text_valign": "top"})
         look = box_look(Box(label="x"), theme)
@@ -322,6 +352,51 @@ class TestDrawBox:
         box = Box(label="x", corner_radius=0)
         style = draw_box(_axes(), box, self.RECT, LIGHT, 1).patch.get_boxstyle()
         assert type(style).__name__ == "Square"
+
+    def test_no_shadow_draws_no_layers(self) -> None:
+        assert draw_box(_axes(), Box(label="x"), self.RECT, LIGHT, 1).shadow == ()
+
+    def test_shadow_layers_grow_outward_from_the_offset_box(self) -> None:
+        shadow = Shadow(dx=0.1, dy=0.2, softness=0.3)
+        box = Box(label="x", shadow=True, corner_radius=0.25)
+        theme = LIGHT.model_copy(update={"shadow": shadow})
+        layers = draw_box(_axes(), box, self.RECT, theme, 1).shadow
+        assert len(layers) == SHADOW_LAYERS
+        grows = [0.3 * i / (SHADOW_LAYERS - 1) for i in range(SHADOW_LAYERS)]
+        for layer, grow in zip(layers, grows, strict=True):
+            assert (layer.get_x(), layer.get_y()) == pytest.approx(
+                (1.1 - grow, 2.2 - grow)
+            )
+            assert (layer.get_width(), layer.get_height()) == pytest.approx(
+                (3 + 2 * grow, 1.5 + 2 * grow)
+            )
+            style = layer.get_boxstyle()
+            assert style.rounding_size == pytest.approx(0.25 + grow)  # type: ignore[attr-defined]
+
+    def test_shadow_layers_add_up_to_its_opacity(self) -> None:
+        theme = LIGHT.model_copy(update={"shadow": Shadow(alpha=0.2)})
+        layers = draw_box(_axes(), Box(label="x"), self.RECT, theme, 1).shadow
+        (alpha,) = {layer.get_alpha() for layer in layers}
+        assert alpha is not None
+        assert 1 - (1 - alpha) ** len(layers) == pytest.approx(0.2)
+
+    def test_hard_shadow_is_one_layer(self) -> None:
+        shadow = Shadow(softness=0, alpha=0.3, color="#DC2626")
+        theme = LIGHT.model_copy(update={"shadow": shadow, "corner_radius": 0})
+        (layer,) = draw_box(_axes(), Box(label="x"), self.RECT, theme, 1).shadow
+        assert layer.get_alpha() == pytest.approx(0.3)
+        assert layer.get_facecolor()[:3] == pytest.approx(to_rgba("#DC2626")[:3])
+        assert (layer.get_width(), layer.get_height()) == (3, 1.5)
+        assert type(layer.get_boxstyle()).__name__ == "Square"
+
+    def test_shadow_sits_under_the_box_and_above_edges(self) -> None:
+        axes = _axes()
+        theme = LIGHT.model_copy(update={"shadow": Shadow()})
+        drawn = draw_box(axes, Box(label="x"), self.RECT, theme, 1)
+        assert Z_EDGE < Z_SHADOW < Z_BOX
+        assert all(layer.get_zorder() == Z_SHADOW for layer in drawn.shadow)
+        assert all(layer.get_linewidth() == 0 for layer in drawn.shadow)
+        assert all(layer in axes.patches for layer in drawn.shadow)
 
     def test_tiers_are_drawn_top_to_bottom_with_their_fonts(self) -> None:
         box = Box(label="Model", subtitle="gradient boosting", eyebrow="STEP 3")
@@ -981,6 +1056,13 @@ class TestRender:
             "Model training pipeline",
             "Three steps, three roles",
         ]
+
+    def test_draws_a_shadow_under_every_box(self) -> None:
+        theme = LIGHT.model_copy(update={"shadow": Shadow()})
+        diagram = _one_row().model_copy(update={"theme": theme})
+        (axes,) = diagram.render().axes
+        shadows = [p for p in axes.patches if p.get_zorder() == Z_SHADOW]
+        assert len(shadows) == 3 * SHADOW_LAYERS
 
     def test_draws_the_footnote_last(self) -> None:
         diagram = _one_row().model_copy(update={"footnote": "Source: survey"})

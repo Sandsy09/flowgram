@@ -50,6 +50,12 @@ Positive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 NonNegative = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 """A finite number that is zero or greater."""
 
+Finite = Annotated[float, Field(allow_inf_nan=False)]
+"""A finite number, which may be negative."""
+
+Opacity = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
+"""An opacity from 0 (invisible) to 1 (solid)."""
+
 TextAlign = Literal["left", "center", "right"]
 """Horizontal alignment of text lines."""
 
