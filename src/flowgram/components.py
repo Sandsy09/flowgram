@@ -42,9 +42,11 @@ class Box(Spec):
             the theme's ``text_align``.
         fill: Overrides the role's fill colour.
         stroke: Overrides the role's outline colour.
-        text_color: Overrides the role's text colour for the label and
-            subtitle.
+        text_color: Overrides the role's text colour. It colours the label,
+            and the eyebrow and subtitle when neither the box nor the role
+            gives them a colour of their own.
         eyebrow_color: Overrides the role's eyebrow colour.
+        subtitle_color: Overrides the role's subtitle colour.
         line_width: Overrides the theme's outline width, in points.
         corner_radius: Overrides the theme's corner radius, in units.
     """
@@ -62,6 +64,7 @@ class Box(Spec):
     stroke: Colour | None = None
     text_color: Colour | None = None
     eyebrow_color: Colour | None = None
+    subtitle_color: Colour | None = None
     line_width: Positive | None = None
     corner_radius: NonNegative | None = None
 

@@ -41,7 +41,9 @@ class TestBox:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             _box(colour="red")
 
-    @pytest.mark.parametrize("field", ["fill", "stroke", "text_color"])
+    @pytest.mark.parametrize(
+        "field", ["fill", "stroke", "text_color", "eyebrow_color", "subtitle_color"]
+    )
     def test_bad_colour_overrides_are_rejected(self, field: str) -> None:
         with pytest.raises(ValidationError, match=field):
             _box(**{field: "nope"})

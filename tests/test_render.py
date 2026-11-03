@@ -193,17 +193,14 @@ class TestBoxLook:
             stroke="#222222",
             text_color="#333333",
             eyebrow_color="#444444",
+            subtitle_color="#555555",
             line_width=3,
             corner_radius=0,
             text_align="right",
         )
         look = box_look(box, LIGHT)
-        assert (look.fill, look.stroke, look.text, look.eyebrow) == (
-            "#111111",
-            "#222222",
-            "#333333",
-            "#444444",
-        )
+        assert (look.fill, look.stroke, look.text) == ("#111111", "#222222", "#333333")
+        assert (look.eyebrow, look.subtitle) == ("#444444", "#555555")
         assert (look.line_width, look.corner_radius, look.text_align) == (
             3,
             0,
@@ -222,6 +219,38 @@ class TestBoxLook:
     def test_eyebrow_follows_a_text_colour_override(self) -> None:
         look = box_look(Box(label="x", text_color="#DC2626"), LIGHT)
         assert look.eyebrow == "#DC2626"
+
+    def test_subtitle_falls_back_to_the_role_text_colour(self) -> None:
+        look = box_look(Box(label="x", role="muted"), LIGHT)
+        assert look.subtitle == LIGHT.roles["muted"].text
+
+    def test_subtitle_uses_the_role_subtitle_colour(self) -> None:
+        roles = {
+            "default": RoleStyle(
+                fill="#FFFFFF", stroke="#000000", text="#000000", subtitle="#64748B"
+            )
+        }
+        look = box_look(Box(label="x"), Theme(roles=roles))
+        assert (look.text, look.subtitle) == ("#000000", "#64748B")
+
+    def test_subtitle_follows_a_text_colour_override(self) -> None:
+        look = box_look(Box(label="x", text_color="#DC2626"), LIGHT)
+        assert look.subtitle == "#DC2626"
+
+    def test_box_subtitle_colour_beats_the_role(self) -> None:
+        roles = {
+            "default": RoleStyle(
+                fill="#FFFFFF", stroke="#000000", text="#000000", subtitle="#64748B"
+            )
+        }
+        box = Box(label="x", subtitle_color="#16A34A")
+        assert box_look(box, Theme(roles=roles)).subtitle == "#16A34A"
+
+    @pytest.mark.parametrize("theme", [Theme.light(), Theme.mono()])
+    def test_presets_draw_subtitles_in_the_text_colour(self, theme: Theme) -> None:
+        for name, role in theme.roles.items():
+            assert role.subtitle is None
+            assert box_look(Box(label="x", role=name), theme).subtitle == role.text
 
     def test_theme_alignment_applies_when_the_box_has_none(self) -> None:
         theme = LIGHT.model_copy(update={"text_align": "left"})
@@ -284,6 +313,16 @@ class TestDrawBox:
             to_rgba("#2563EB"),
             text,
             text,
+        ]
+
+    def test_subtitle_is_drawn_in_its_own_colour(self) -> None:
+        box = Box(label="x", eyebrow="e", subtitle="s", subtitle_color="#64748B")
+        texts = draw_box(_axes(), box, self.RECT, LIGHT, 1).texts
+        text = to_rgba(LIGHT.roles["default"].text)
+        assert [to_rgba(t.get_color()) for t in texts] == [
+            text,
+            text,
+            to_rgba("#64748B"),
         ]
 
     def test_text_block_is_centred_vertically_at_the_measured_offsets(self) -> None:
