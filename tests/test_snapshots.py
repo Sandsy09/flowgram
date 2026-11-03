@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import FancyBboxPatch
 
 from flowgram import Box, Diagram, Row
+from tests.conftest import spec_pipeline
 
 SnapshotCheck = Callable[[Figure, str], None]
 
@@ -51,3 +52,9 @@ def test_one_row(snapshot: SnapshotCheck) -> None:
         ),
     )
     snapshot(diagram.render(), "one_row")
+
+
+@pytest.mark.snapshot
+def test_branching_pipeline(snapshot: SnapshotCheck) -> None:
+    """Milestone 4 gate: the spec's branching pipeline with every edge drawn."""
+    snapshot(spec_pipeline().render(), "branching_pipeline")

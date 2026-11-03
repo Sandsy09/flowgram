@@ -1,8 +1,10 @@
 """Tests for the renderer: figures, axes and drawn artists, without images."""
 
 import io
+import itertools
 import re
 from pathlib import Path
+from typing import ClassVar
 
 import matplotlib as mpl
 import pytest
@@ -17,7 +19,7 @@ import flowgram
 from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
 from flowgram._base import TextAlign
 from flowgram._text import POINTS_PER_INCH, TIER_GAP, measure_text, text_size
-from flowgram.components import EdgeStyle
+from flowgram.components import EdgeStyle, Side
 from flowgram.edges import anchor, label_point, route
 from flowgram.layout import Layout, NodePath, Rect, layout
 from flowgram.render import (
@@ -47,6 +49,7 @@ from flowgram.render import (
     render,
     title_band,
 )
+from tests.conftest import spec_pipeline
 
 LIGHT = Theme.light()
 
@@ -909,3 +912,50 @@ class TestEdgeLabels:
         (axes,) = diagram.render().axes
         (text,) = [t for t in axes.texts if t.get_text() == "train"]
         assert text.get_zorder() > max(a.get_zorder() for a in axes.patches)
+
+
+class TestBranchingGate:
+    """Milestone 4 gate: every edge of the spec's pipeline is on the right sides."""
+
+    EXPECTED: ClassVar[dict[tuple[str, str], tuple[Side, Side]]] = {
+        ("data", "clean"): ("right", "left"),
+        ("data", "feats"): ("right", "left"),
+        ("clean", "model"): ("right", "left"),
+        ("feats", "model"): ("right", "left"),
+    }
+
+    def _drawn(self) -> tuple[Layout, tuple[DrawnEdge, ...]]:
+        return _draw_edges(spec_pipeline())
+
+    def test_edges_start_and_end_on_the_expected_sides(self) -> None:
+        result, drawn = self._drawn()
+        for edge, out in zip(spec_pipeline().edges, drawn, strict=True):
+            exit_side, entry_side = self.EXPECTED[(edge.src, edge.dst)]
+            assert (out.route.exit_side, out.route.entry_side) == (
+                exit_side,
+                entry_side,
+            )
+            assert out.route.points[0] == anchor(result.box(edge.src), exit_side)
+            assert out.route.points[-1] == anchor(result.box(edge.dst), entry_side)
+
+    def test_branches_are_orthogonal_elbows(self) -> None:
+        _, drawn = self._drawn()
+        for out in drawn:
+            assert len(out.route.points) == 4
+            for (ax, ay), (bx, by) in itertools.pairwise(out.route.points):
+                assert ax == bx or ay == by
+
+    def test_fan_out_shares_the_source_anchor(self) -> None:
+        _, (to_clean, to_feats, *_) = self._drawn()
+        assert to_clean.route.points[0] == to_feats.route.points[0]
+
+    def test_styles_and_label(self) -> None:
+        _, drawn = self._drawn()
+        assert [d.line.get_linestyle() for d in drawn] == ["-", "-", "-", "--"]
+        assert [d.label.get_text() if d.label else None for d in drawn] == [
+            None,
+            None,
+            "train",
+            None,
+        ]
+        assert all(len(d.heads) == 1 for d in drawn)
