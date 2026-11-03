@@ -18,7 +18,7 @@ from matplotlib.transforms import Bbox
 import flowgram
 from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
 from flowgram._base import TextAlign
-from flowgram._text import POINTS_PER_INCH, TIER_GAP, measure_text, text_size
+from flowgram._text import POINTS_PER_INCH, measure_text, text_size
 from flowgram.components import EdgeStyle, Side
 from flowgram.edges import anchor, label_point, route
 from flowgram.layout import Layout, NodePath, Rect, layout
@@ -184,6 +184,7 @@ class TestBoxLook:
         assert look.line_width == LIGHT.line_width
         assert look.corner_radius == LIGHT.corner_radius
         assert look.text_align == LIGHT.text_align
+        assert look.text_valign == LIGHT.text_valign
 
     def test_box_overrides_win(self) -> None:
         box = Box(
@@ -197,15 +198,13 @@ class TestBoxLook:
             line_width=3,
             corner_radius=0,
             text_align="right",
+            text_valign="top",
         )
         look = box_look(box, LIGHT)
         assert (look.fill, look.stroke, look.text) == ("#111111", "#222222", "#333333")
         assert (look.eyebrow, look.subtitle) == ("#444444", "#555555")
-        assert (look.line_width, look.corner_radius, look.text_align) == (
-            3,
-            0,
-            "right",
-        )
+        assert (look.line_width, look.corner_radius) == (3, 0)
+        assert (look.text_align, look.text_valign) == ("right", "top")
 
     def test_eyebrow_uses_the_role_eyebrow_colour(self) -> None:
         roles = {
@@ -253,8 +252,9 @@ class TestBoxLook:
             assert box_look(Box(label="x", role=name), theme).subtitle == role.text
 
     def test_theme_alignment_applies_when_the_box_has_none(self) -> None:
-        theme = LIGHT.model_copy(update={"text_align": "left"})
-        assert box_look(Box(label="x"), theme).text_align == "left"
+        theme = LIGHT.model_copy(update={"text_align": "left", "text_valign": "top"})
+        look = box_look(Box(label="x"), theme)
+        assert (look.text_align, look.text_valign) == ("left", "top")
 
 
 class TestDrawBox:
@@ -335,6 +335,45 @@ class TestDrawBox:
         )
         assert all(t.get_verticalalignment() == "top" for t in texts)
 
+    def test_top_aligned_text_starts_one_padding_below_the_top(self) -> None:
+        box = Box(label="Model", subtitle="boosting", eyebrow="STEP", text_valign="top")
+        texts = draw_box(_axes(), box, self.RECT, LIGHT, 1).texts
+        block = measure_text("Model", LIGHT, 1, subtitle="boosting", eyebrow="STEP")
+        top = 2 + LIGHT.text_padding
+        assert [t.get_position()[1] for t in texts] == pytest.approx(
+            [top + tier.top for tier in block.tiers]
+        )
+
+    def test_theme_top_alignment_applies_to_every_box(self) -> None:
+        theme = LIGHT.model_copy(update={"text_valign": "top"})
+        (text,) = draw_box(_axes(), Box(label="x"), self.RECT, theme, 1).texts
+        assert text.get_position()[1] == pytest.approx(2 + theme.text_padding)
+
+    def test_box_can_centre_text_under_a_top_aligned_theme(self) -> None:
+        theme = LIGHT.model_copy(update={"text_valign": "top"})
+        box = Box(label="x", text_valign="center")
+        (text,) = draw_box(_axes(), box, self.RECT, theme, 1).texts
+        block = measure_text("x", theme, 1)
+        assert text.get_position()[1] == pytest.approx(2 + (1.5 - block.height) / 2)
+
+    @pytest.mark.parametrize(
+        "update", [{"line_spacing": 1.7}, {"tier_gap": 0.9}, {"tier_gap": 0.0}]
+    )
+    def test_spacing_moves_the_tiers_where_measurement_puts_them(
+        self, update: dict[str, float]
+    ) -> None:
+        theme = LIGHT.model_copy(update=update)
+        box = Box(label="Two\nlines", subtitle="and\nmore", eyebrow="STEP")
+        texts = draw_box(_axes(), box, self.RECT, theme, 1).texts
+        block = measure_text(
+            "Two\nlines", theme, 1, subtitle="and\nmore", eyebrow="STEP"
+        )
+        top = 2 + (1.5 - block.height) / 2
+        assert [t.get_position()[1] for t in texts] == pytest.approx(
+            [top + tier.top for tier in block.tiers]
+        )
+        assert all(t.get_linespacing() == theme.line_spacing for t in texts)
+
     @pytest.mark.parametrize(
         ("align", "x"),
         [
@@ -379,12 +418,24 @@ class TestDrawBoxes:
 
     @pytest.mark.parametrize("scale", [0.5, 1.0, 2.0])
     @pytest.mark.parametrize("align", ["left", "center", "right"])
-    def test_text_stays_inside_its_box(self, scale: float, align: TextAlign) -> None:
-        theme = LIGHT.model_copy(update={"text_align": align})
+    @pytest.mark.parametrize(
+        "spacing",
+        [
+            {},
+            {"text_valign": "top"},
+            {"line_spacing": 1.8, "tier_gap": 1.0},
+            {"text_valign": "top", "line_spacing": 1.0, "tier_gap": 0.0},
+        ],
+    )
+    def test_text_stays_inside_its_box(
+        self, scale: float, align: TextAlign, spacing: dict[str, object]
+    ) -> None:
+        theme = LIGHT.model_copy(update={"text_align": align, **spacing})
         diagram = Diagram(
             theme=theme,
             scale=scale,
             root=Row(
+                uniform=True,
                 children=[
                     Box(label="A rather long label for one box"),
                     Box(label="x"),
@@ -393,7 +444,7 @@ class TestDrawBoxes:
                         eyebrow="EYEBROW TEXT",
                         subtitle="and a subtitle that is longer still",
                     ),
-                ]
+                ],
             ),
         )
         figure, _, drawn = _drawn(diagram)
@@ -422,7 +473,14 @@ def _titled(title: str | None, subtitle: str | None = None, **theme: object) -> 
 
 
 def _title_size(text: str, theme: Theme = LIGHT) -> tuple[float, float]:
-    return text_size(text, theme.title_size, theme.title_weight, theme.font_family, 1)
+    return text_size(
+        text,
+        theme.title_size,
+        theme.title_weight,
+        theme.font_family,
+        1,
+        line_spacing=theme.line_spacing,
+    )
 
 
 class TestTitleBand:
@@ -448,7 +506,7 @@ class TestTitleBand:
         band = title_band(_titled("Pipeline", "Training and scoring"))
         assert band is not None
         title, subtitle = band.lines
-        gap = LIGHT.title_size * TIER_GAP / POINTS_PER_INCH
+        gap = LIGHT.title_size * LIGHT.tier_gap / POINTS_PER_INCH
         assert subtitle.top == pytest.approx(title.height + gap)
         assert (subtitle.size, subtitle.weight) == (LIGHT.subtitle_size, "normal")
         assert band.height == pytest.approx(subtitle.top + subtitle.height)

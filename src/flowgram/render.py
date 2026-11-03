@@ -23,15 +23,8 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import FancyBboxPatch, Polygon
 from matplotlib.text import Text
 
-from flowgram._base import FontWeight, TextAlign
-from flowgram._text import (
-    LINE_SPACING,
-    POINTS_PER_INCH,
-    TIER_GAP,
-    TierKind,
-    measure_text,
-    text_size,
-)
+from flowgram._base import FontWeight, TextAlign, TextVAlign
+from flowgram._text import POINTS_PER_INCH, TierKind, measure_text, text_size
 from flowgram.components import Box, Child, Column, Edge, EdgeStyle, Row
 from flowgram.diagram import Diagram
 from flowgram.edges import Route, label_point, route
@@ -184,7 +177,8 @@ def title_band(diagram: Diagram) -> TitleBand | None:
 
     The title uses ``theme.title_size`` and ``theme.title_weight``, and the
     subtitle uses ``theme.subtitle_size`` and ``theme.subtitle_weight``. The
-    subtitle sits ``TIER_GAP`` title sizes below the title, as box tiers do.
+    subtitle sits ``theme.tier_gap`` title sizes below the title, as box
+    tiers do, and lines are ``theme.line_spacing`` font sizes apart.
 
     Args:
         diagram: Supplies the title, subtitle, theme and scale.
@@ -204,8 +198,15 @@ def title_band(diagram: Diagram) -> TitleBand | None:
         if not text:
             continue
         if lines:
-            top += theme.title_size * TIER_GAP * to_units
-        width, height = text_size(text, size, weight, theme.font_family, diagram.scale)
+            top += theme.title_size * theme.tier_gap * to_units
+        width, height = text_size(
+            text,
+            size,
+            weight,
+            theme.font_family,
+            diagram.scale,
+            line_spacing=theme.line_spacing,
+        )
         lines.append(TitleLine(text, size, weight, top, width, height))
         top += height
     if not lines:
@@ -322,6 +323,7 @@ class BoxLook:
         line_width: Outline width in points.
         corner_radius: Corner radius in units.
         text_align: Horizontal alignment of every line of text.
+        text_valign: Vertical placement of the text in the box.
     """
 
     fill: str
@@ -332,6 +334,7 @@ class BoxLook:
     line_width: float
     corner_radius: float
     text_align: TextAlign
+    text_valign: TextVAlign
 
 
 def box_look(box: Box, theme: Theme) -> BoxLook:
@@ -364,6 +367,7 @@ def box_look(box: Box, theme: Theme) -> BoxLook:
             theme.corner_radius if box.corner_radius is None else box.corner_radius
         ),
         text_align=theme.text_align if box.text_align is None else box.text_align,
+        text_valign=(theme.text_valign if box.text_valign is None else box.text_valign),
     )
 
 
@@ -412,9 +416,10 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
 
     The box is a rounded rectangle filling ``rect``, with its corner radius
     capped at half the shorter side. The text is measured exactly as layout
-    measured it and the stack of tiers is centred vertically in the box, each
-    tier at the offset the measurement gave it. Left- and right-aligned text
-    is inset by ``theme.text_padding``.
+    measured it, each tier at the offset the measurement gave it. The stack of
+    tiers is centred vertically in the box, or starts ``theme.text_padding``
+    below the top border when the box's ``text_valign`` is ``"top"``. Left-
+    and right-aligned text is inset by ``theme.text_padding`` too.
 
     Args:
         axes: Axes set up by ``setup_axes``, in layout units with y down.
@@ -445,7 +450,10 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
     block = measure_text(
         box.label, theme, scale, subtitle=box.subtitle, eyebrow=box.eyebrow
     )
-    top = rect.y + (rect.height - block.height) / 2
+    if look.text_valign == "top":
+        top = rect.y + theme.text_padding
+    else:
+        top = rect.y + (rect.height - block.height) / 2
     x = _text_x(rect, look.text_align, theme.text_padding)
     texts: list[Text] = []
     for tier in block.tiers:
@@ -462,7 +470,7 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
                 horizontalalignment=look.text_align,
                 multialignment=look.text_align,
                 verticalalignment="top",
-                linespacing=LINE_SPACING,
+                linespacing=theme.line_spacing,
                 parse_math=False,
                 zorder=Z_BOX_TEXT,
             )
@@ -535,7 +543,7 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
             horizontalalignment=align,
             multialignment=align,
             verticalalignment="top",
-            linespacing=LINE_SPACING,
+            linespacing=theme.line_spacing,
             parse_math=False,
             zorder=Z_BOX_TEXT,
         )
@@ -728,7 +736,7 @@ def _draw_edge_label(
         horizontalalignment="center",
         verticalalignment="center",
         multialignment="center",
-        linespacing=LINE_SPACING,
+        linespacing=theme.line_spacing,
         parse_math=False,
         zorder=Z_EDGE_LABEL,
         bbox={

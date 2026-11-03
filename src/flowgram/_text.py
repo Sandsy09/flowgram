@@ -21,12 +21,6 @@ from flowgram.theme import Theme
 POINTS_PER_INCH = 72.0
 """Typographic points in one inch."""
 
-LINE_SPACING = 1.2
-"""Line spacing inside one tier, as a multiple of the font size."""
-
-TIER_GAP = 0.3
-"""Space between the eyebrow, label and subtitle, as a multiple of the label size."""
-
 # Agg snaps text extents to whole pixels. Measuring at ten pixels per point
 # keeps that rounding below a tenth of a point.
 _DPI = POINTS_PER_INCH * 10
@@ -91,7 +85,7 @@ def _check_font(family: str) -> None:
 
 @lru_cache(maxsize=4096)
 def _extent_points(
-    text: str, size: float, weight: FontWeight, family: str
+    text: str, size: float, weight: FontWeight, family: str, line_spacing: float
 ) -> tuple[float, float]:
     """Return the ``(width, height)`` of ``text`` in points.
 
@@ -113,7 +107,7 @@ def _extent_points(
             0,
             content,
             fontproperties=props,
-            linespacing=LINE_SPACING,
+            linespacing=line_spacing,
             parse_math=False,
         )
         artist.set_figure(figure)
@@ -128,7 +122,13 @@ def _extent_points(
 
 
 def text_size(
-    text: str, size: float, weight: FontWeight, family: str, scale: float
+    text: str,
+    size: float,
+    weight: FontWeight,
+    family: str,
+    scale: float,
+    *,
+    line_spacing: float,
 ) -> tuple[float, float]:
     """Measure one piece of text in units, such as a diagram title.
 
@@ -141,6 +141,8 @@ def text_size(
         weight: ``"normal"`` or ``"bold"``.
         family: An installed font family.
         scale: Inches per unit, as in ``Diagram.scale``.
+        line_spacing: Distance between lines as a multiple of ``size``, as
+            in ``Theme.line_spacing``.
 
     Returns:
         The text's ``(width, height)`` in units.
@@ -149,7 +151,7 @@ def text_size(
         ValueError: If the font family is not installed.
     """
     _check_font(family)
-    width, height = _extent_points(text, size, weight, family)
+    width, height = _extent_points(text, size, weight, family, line_spacing)
     to_units = 1 / (POINTS_PER_INCH * scale)
     return width * to_units, height * to_units
 
@@ -164,13 +166,14 @@ def measure_text(
 ) -> TextBlock:
     """Measure a box's eyebrow, label and subtitle in units.
 
-    Each tier uses its theme size and weight. Tiers are stacked top to
-    bottom with a gap of ``TIER_GAP`` label sizes between them. Missing or
+    Each tier uses its theme size and weight, with lines
+    ``theme.line_spacing`` font sizes apart. Tiers are stacked top to bottom
+    with a gap of ``theme.tier_gap`` label sizes between them. Missing or
     empty tiers are skipped. Lines break only at newline characters.
 
     Args:
         label: The main text.
-        theme: Supplies the font family, sizes and weights.
+        theme: Supplies the font family, sizes, weights and spacing.
         scale: Inches per unit, as in ``Diagram.scale``.
         subtitle: Optional text under the label.
         eyebrow: Optional text above the label.
@@ -188,7 +191,7 @@ def measure_text(
         ("label", label, theme.label_size, theme.label_weight),
         ("subtitle", subtitle, theme.subtitle_size, theme.subtitle_weight),
     ]
-    gap = theme.label_size * TIER_GAP * to_units
+    gap = theme.label_size * theme.tier_gap * to_units
     tiers: list[Tier] = []
     top = 0.0
     for kind, text, size, weight in specs:
@@ -196,7 +199,9 @@ def measure_text(
             continue
         if tiers:
             top += gap
-        width, height = _extent_points(text, size, weight, theme.font_family)
+        width, height = _extent_points(
+            text, size, weight, theme.font_family, theme.line_spacing
+        )
         tier = Tier(kind, text, top, width * to_units, height * to_units)
         tiers.append(tier)
         top += tier.height

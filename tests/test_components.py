@@ -70,14 +70,15 @@ class TestBox:
         box = Box(label="A")
         assert box.eyebrow is None
         assert box.text_align is None
+        assert box.text_valign is None
         assert box.eyebrow_color is None
 
     def test_three_text_tiers(self) -> None:
-        box = Box(eyebrow="STEP 2", label="Health score", subtitle="Baseline\nrisk")
+        box = Box(eyebrow="STEP 2", label="Health score", subtitle="Wear\nindex")
         assert (box.eyebrow, box.label, box.subtitle) == (
             "STEP 2",
             "Health score",
-            "Baseline\nrisk",
+            "Wear\nindex",
         )
 
     @pytest.mark.parametrize("align", ["left", "center", "right"])
@@ -87,6 +88,14 @@ class TestBox:
     def test_unknown_text_align_lists_the_choices(self) -> None:
         with pytest.raises(ValidationError, match="'left', 'center' or 'right'"):
             _box(text_align="justify")
+
+    @pytest.mark.parametrize("valign", ["top", "center"])
+    def test_text_valign_values(self, valign: str) -> None:
+        assert _box(text_valign=valign).text_valign == valign
+
+    def test_unknown_text_valign_lists_the_choices(self) -> None:
+        with pytest.raises(ValidationError, match="'top' or 'center'"):
+            _box(text_valign="bottom")
 
     def test_empty_eyebrow_is_rejected(self) -> None:
         with pytest.raises(ValidationError):
