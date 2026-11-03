@@ -11,6 +11,7 @@ from flowgram._base import (
     Positive,
     Spec,
     TextAlign,
+    TextVAlign,
 )
 
 DEFAULT_ROLE = "default"
@@ -78,6 +79,15 @@ class Theme(Spec):
         subtitle_weight: Weight of box subtitles.
         eyebrow_weight: Weight of box eyebrows.
         text_align: Default horizontal alignment of text inside boxes.
+        text_valign: Default vertical placement of text inside boxes:
+            ``"center"``, or ``"top"`` to start it one ``text_padding`` below
+            the top border. It only shows on boxes taller than their text.
+        line_spacing: Distance between lines of one piece of text, as a
+            multiple of its font size. Used for box text, the diagram title
+            and edge labels.
+        tier_gap: Space between a box's eyebrow, label and subtitle, as a
+            multiple of the label size. The diagram subtitle sits this many
+            title sizes below the title.
         title_weight: Weight of the diagram title. Its subtitle uses
             ``subtitle_size`` and ``subtitle_weight``.
         title_align: Alignment of the diagram title and subtitle across
@@ -109,6 +119,9 @@ class Theme(Spec):
     subtitle_weight: FontWeight = "normal"
     eyebrow_weight: FontWeight = "bold"
     text_align: TextAlign = "center"
+    text_valign: TextVAlign = "center"
+    line_spacing: Positive = 1.2
+    tier_gap: NonNegative = 0.3
     title_weight: FontWeight = "bold"
     title_align: TextAlign = "left"
     title_color: Colour | None = None

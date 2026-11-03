@@ -6,10 +6,11 @@ with neutral text. The spec is 33 lines written one box or edge per line;
 formatting at 88 columns spreads it further. Run this file to write
 ``card_flow.png`` next to it.
 
-Body text is muted under a dark title with a role ``subtitle`` colour. Not
-covered yet, and tracked as issues: text at the top of tall cards with looser
-spacing (#66), a separately styled diagram subtitle (#67), a footnote (#68),
-group panels with badges, headings and captions (#32), and shadows (#69).
+Body text is muted under a dark title with a role ``subtitle`` colour, and
+the tall cards keep their text at the top with looser line spacing. Not
+covered yet, and tracked as issues: a separately styled diagram subtitle
+(#67), a footnote (#68), group panels with badges, headings and captions
+(#32), and shadows (#69).
 """
 
 from pathlib import Path
@@ -24,6 +25,9 @@ theme = Theme.light().model_copy(
         "label_size": 14,
         "eyebrow_size": 8.5,
         "text_align": "left",
+        "text_valign": "top",
+        "line_spacing": 1.35,
+        "tier_gap": 0.5,
         "line_width": 1.0,
         "roles": {
             "default": RoleStyle(
@@ -46,12 +50,14 @@ theme = Theme.light().model_copy(
 
 def card(box_id: str, role: str, eyebrow: str, label: str, body: str) -> Box:
     """Return a card with an eyebrow, a title and a body."""
-    return Box(id=box_id, role=role, eyebrow=eyebrow, label=label, subtitle=body)
+    return Box(
+        id=box_id, role=role, eyebrow=eyebrow, label=label, subtitle=body, height=2.4
+    )
 
 
 def action(box_id: str, label: str, body: str) -> Box:
     """Return a short action card with a title and a body."""
-    return Box(id=box_id, label=label, subtitle=body, height=0.9)
+    return Box(id=box_id, label=label, subtitle=body)
 
 
 spec = Diagram(

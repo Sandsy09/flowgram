@@ -5,7 +5,15 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from flowgram._base import Colour, FrozenSeq, NonNegative, Positive, Spec, TextAlign
+from flowgram._base import (
+    Colour,
+    FrozenSeq,
+    NonNegative,
+    Positive,
+    Spec,
+    TextAlign,
+    TextVAlign,
+)
 
 Align = Literal["start", "center", "end"]
 """Cross-axis alignment of children inside a Row or Column."""
@@ -40,6 +48,8 @@ class Box(Spec):
         height: Fixed height in units, or ``None`` to size from the text.
         text_align: Horizontal alignment of every line of text, or ``None`` for
             the theme's ``text_align``.
+        text_valign: Vertical placement of the text, ``"top"`` or
+            ``"center"``, or ``None`` for the theme's ``text_valign``.
         fill: Overrides the role's fill colour.
         stroke: Overrides the role's outline colour.
         text_color: Overrides the role's text colour. It colours the label,
@@ -60,6 +70,7 @@ class Box(Spec):
     width: Positive | None = None
     height: Positive | None = None
     text_align: TextAlign | None = None
+    text_valign: TextVAlign | None = None
     fill: Colour | None = None
     stroke: Colour | None = None
     text_color: Colour | None = None

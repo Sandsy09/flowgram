@@ -53,5 +53,8 @@ NonNegative = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 TextAlign = Literal["left", "center", "right"]
 """Horizontal alignment of text lines."""
 
+TextVAlign = Literal["top", "center"]
+"""Vertical placement of a box's text: at the top, or centred."""
+
 FontWeight = Literal["normal", "bold"]
 """Weight of a line of text."""

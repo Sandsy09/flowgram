@@ -56,7 +56,15 @@ def test_named_colours_are_accepted() -> None:
 
 
 @pytest.mark.parametrize(
-    "field", ["title_size", "label_size", "line_width", "min_box_width", "arrow_size"]
+    "field",
+    [
+        "title_size",
+        "label_size",
+        "line_width",
+        "min_box_width",
+        "arrow_size",
+        "line_spacing",
+    ],
 )
 def test_positive_fields_reject_zero_and_negative(field: str) -> None:
     for bad in (0, -1):
@@ -64,7 +72,7 @@ def test_positive_fields_reject_zero_and_negative(field: str) -> None:
             _theme(**{field: bad})
 
 
-@pytest.mark.parametrize("field", ["gap", "text_padding", "corner_radius"])
+@pytest.mark.parametrize("field", ["gap", "text_padding", "corner_radius", "tier_gap"])
 def test_non_negative_fields_allow_zero_but_not_negative(field: str) -> None:
     assert getattr(_theme(**{field: 0}), field) == 0
     with pytest.raises(ValidationError):
@@ -100,6 +108,20 @@ def test_text_styling_defaults() -> None:
     assert theme.eyebrow_weight == "bold"
     assert theme.text_align == "center"
     assert theme.eyebrow_size < theme.label_size
+
+
+def test_text_spacing_defaults() -> None:
+    theme = Theme.light()
+    assert (theme.text_valign, theme.line_spacing, theme.tier_gap) == (
+        "center",
+        1.2,
+        0.3,
+    )
+
+
+def test_unknown_vertical_alignment_lists_the_choices() -> None:
+    with pytest.raises(ValidationError, match="'top' or 'center'"):
+        _theme(text_valign="bottom")
 
 
 def test_title_styling_defaults() -> None:
