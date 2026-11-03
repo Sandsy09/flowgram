@@ -129,9 +129,10 @@ def test_looser_line_spacing_adds_height_between_lines() -> None:
     loose = THEME.model_copy(update={"line_spacing": 1.8})
     tight = measure_text("Raw\ndata", THEME, 1.0)
     spaced = measure_text("Raw\ndata", loose, 1.0)
-    # One extra line gap at least. matplotlib 3.11 spaces the first line too.
+    # Older matplotlib spaces lines by the font's ascent, so the gap grows by
+    # less than a full size; matplotlib 3.11 spaces the first line too.
     extra = (1.8 - THEME.line_spacing) * THEME.label_size / 72
-    assert extra - 0.01 <= spaced.height - tight.height <= 2 * extra + 0.01
+    assert extra / 2 <= spaced.height - tight.height <= 2 * extra + 0.01
     assert spaced.width == pytest.approx(tight.width)
 
 
