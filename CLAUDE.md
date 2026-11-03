@@ -68,6 +68,8 @@ uv run poe docs:build              # docs, warnings are errors
   Linux with the bundled DejaVu Sans font.
 - Python 3.11 or newer. Runtime dependencies are `pydantic` and `matplotlib` only.
   PyYAML is an optional extra, not a hard dependency.
+- The core stays in Python (ADR 0005). Do not add a compiled extension or a Rust
+  renderer without a new ADR that supersedes it.
 
 ## Workflow
 

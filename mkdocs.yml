@@ -46,6 +46,7 @@ nav:
       - 0002 Frozen Pydantic spec models: adr/0002-frozen-pydantic-spec-models.md
       - 0003 Abstract units and layout-only containers: adr/0003-abstract-units-and-layout-only-containers.md
       - 0004 Layout results keyed by node path: adr/0004-layout-results-keyed-by-node-path.md
+      - 0005 Keep the core in Python: adr/0005-keep-the-core-in-python.md
 
 markdown_extensions:
   - admonition

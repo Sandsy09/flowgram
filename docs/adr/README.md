@@ -6,6 +6,7 @@ Records of significant decisions, in [Nygard format](https://cognitect.com/blog/
 - [0002 — Spec models are frozen Pydantic models validated at construction](0002-frozen-pydantic-spec-models.md)
 - [0003 — Abstract layout units and layout-only containers](0003-abstract-units-and-layout-only-containers.md)
 - [0004 — Layout results are frozen dataclasses keyed by node path](0004-layout-results-keyed-by-node-path.md)
+- [0005 — Keep the core in Python and plan an SVG backend before considering Rust](0005-keep-the-core-in-python.md)
 
 Add a new record by copying the most recent one and incrementing the number.
 Records are immutable: supersede them rather than editing.
