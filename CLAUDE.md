@@ -12,7 +12,8 @@ milestones and release gates. Decisions are recorded in `docs/adr/`.
 
 Milestones 1 to 4 (spec models, layout engine, first render, edges) are done.
 **Next: milestone 5, export and loading.** `Diagram.render()` and `Diagram.draw(ax)`
-draw boxes, edges and the title; there is no `save()` or loading yet.
+draw boxes, edges, the title and the footnote, and `Diagram.save()` writes PNG, SVG
+and PDF. Loading and Jupyter display are not done yet.
 
 | # | Milestone | State |
 | --- | --- | --- |
@@ -36,6 +37,7 @@ src/flowgram/_text.py       Measure box text in units on an off-screen Agg canva
 src/flowgram/layout.py      Rect, Layout, box and container sizing, positions, layout()
 src/flowgram/edges.py       Anchors, side choice, straight and elbow routing, label point
 src/flowgram/render.py      Render settings, frame and title band, boxes, edges, render(), draw()
+src/flowgram/export.py      File type from the extension, save() to PNG, SVG and PDF
 tests/                      One test module per source module
 docs/design/                Spec and roadmap
 docs/adr/                   Architecture decision records

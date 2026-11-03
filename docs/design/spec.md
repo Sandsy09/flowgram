@@ -161,7 +161,8 @@ share a side of a box share one anchor; font size does not change with `scale`.
 
 - `render()` builds a `Figure` directly, with no pyplot global state.
 - `draw(ax)` draws into a caller's `Axes`: sets limits and equal aspect, axis off.
-- `save(path, dpi, transparent)` writes PNG, SVG or PDF by file extension.
+- `save(path, dpi, transparent)` writes PNG, SVG or PDF by file extension. PNGs default
+  to 300 dpi, sharp on a full-width 16:9 slide on a 4K screen.
 - SVG text stays as text (`svg.fonttype = "none"`) so it can be edited downstream. An
   `embed_fonts` option converts text to paths.
 - Output is deterministic: fixed SVG hash salt, no timestamps in metadata.

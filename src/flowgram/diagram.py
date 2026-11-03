@@ -1,5 +1,6 @@
 """The root of a diagram spec, and the checks that tie its parts together."""
 
+import os
 from collections import Counter
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Self
@@ -54,7 +55,7 @@ class Diagram(Spec):
 
         The figure is sized to fit the diagram, at ``scale`` inches per unit,
         and is built without pyplot. In Jupyter it displays as a cell's
-        result. Save it with ``figure.savefig(path)``.
+        result. Write it to a file with ``save``.
 
         Returns:
             A new figure holding the whole diagram.
@@ -63,6 +64,50 @@ class Diagram(Spec):
         from flowgram.render import render
 
         return render(self)
+
+    def save(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        dpi: float | None = None,
+        transparent: bool = False,
+        embed_fonts: bool = False,
+    ) -> None:
+        """Render the diagram and write it to a PNG, SVG or PDF file.
+
+        The file type comes from the extension, which is not case sensitive.
+        The page is the figure ``render`` builds, with nothing cropped.
+
+        SVG text is kept as text, so it stays editable in a vector editor or
+        slide software. The file names the theme's font, so a machine
+        without that font shows a substitute whose widths can differ.
+        ``embed_fonts=True`` turns the text into paths instead: it looks the
+        same everywhere but can no longer be edited as text. PDF always
+        embeds its fonts and PNG is pixels, so the option only affects SVG.
+
+        Args:
+            path: The file to write, ending ``.png``, ``.svg`` or ``.pdf``.
+                An existing file is replaced.
+            dpi: Pixels per inch for PNG output. ``None`` uses
+                ``flowgram.export.DEFAULT_DPI`` (300), sharp on a full-width
+                slide on a 4K screen.
+            transparent: Leave the background out, so only the diagram is
+                drawn. A theme with no ``background`` is transparent already.
+            embed_fonts: Turn SVG text into paths.
+
+        Raises:
+            ValueError: If the extension is not ``.png``, ``.svg`` or
+                ``.pdf``, or ``dpi`` is not a positive number.
+        """
+        from flowgram.export import DEFAULT_DPI, save
+
+        save(
+            self,
+            path,
+            dpi=DEFAULT_DPI if dpi is None else dpi,
+            transparent=transparent,
+            embed_fonts=embed_fonts,
+        )
 
     def draw(self, ax: "Axes") -> None:
         """Draw the diagram into an existing matplotlib axes.
