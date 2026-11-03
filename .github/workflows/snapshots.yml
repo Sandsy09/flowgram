@@ -3,7 +3,7 @@ name: Snapshots
 # Image snapshot tests, Linux only, with the locked dependencies so rendering
 # matches the stored baselines. On failure the expected, actual and diff
 # images are uploaded. Run it by hand with "update" to get fresh baselines as
-# an artifact, then commit them under tests/snapshots/.
+# an artifact, then commit them under tests/snapshots/ and docs/gallery/.
 on:
   push:
     branches: [main]
@@ -62,5 +62,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: snapshot-baselines
-          path: tests/snapshots/
+          path: |
+            tests/snapshots/
+            docs/gallery/*.svg
           if-no-files-found: error
