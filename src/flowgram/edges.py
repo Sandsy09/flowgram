@@ -12,6 +12,8 @@ two boxes can cross a third (the third box's fill hides it). Edges that
 share a side share one anchor rather than spreading along the side.
 """
 
+import itertools
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -248,3 +250,27 @@ def route(edge: Edge, layout: Layout) -> Route:
         edge.routing,
     )
     return Route(points=points, exit_side=exit_side, entry_side=entry_side)
+
+
+def label_point(points: tuple[Point, ...]) -> Point:
+    """Return where an edge's label goes: the middle of its longest segment.
+
+    When two segments are equally long, the first one wins, so the label
+    sits nearer the source.
+
+    Args:
+        points: The edge's polyline, as in ``Route.points``. At least one
+            point.
+
+    Returns:
+        The midpoint of the longest segment, in units. A polyline with a
+        single point, or only zero-length segments, gives its first point.
+    """
+    best = (points[0], points[0])
+    longest = 0.0
+    for a, b in itertools.pairwise(points):
+        length = math.dist(a, b)
+        if length > longest:
+            best, longest = (a, b), length
+    (x1, y1), (x2, y2) = best
+    return ((x1 + x2) / 2, (y1 + y2) / 2)

@@ -34,7 +34,7 @@ from flowgram._text import (
 )
 from flowgram.components import Box, Child, Column, Edge, EdgeStyle, Row
 from flowgram.diagram import Diagram
-from flowgram.edges import Route, route
+from flowgram.edges import Route, label_point, route
 from flowgram.layout import Layout, NodePath, Point, Rect
 from flowgram.layout import layout as compute_layout
 from flowgram.theme import Theme
@@ -47,6 +47,9 @@ FIGURE_DPI = 100.0
 
 SVG_HASH_SALT = "flowgram"
 """Fixed salt for SVG element ids, so one diagram always gives the same SVG."""
+
+EDGE_LABEL_PAD = 0.3
+"""Space around an edge label's background, in label font sizes."""
 
 ARROW_LENGTH = 0.7
 """Arrowhead length, as a multiple of ``theme.arrow_size``."""
@@ -570,11 +573,13 @@ class DrawnEdge:
         line: The polyline, ending where the arrowheads begin.
         heads: One filled arrowhead per end that has one: the end first,
             then the start for ``arrow="both"``.
+        label: The label text, or ``None`` when the edge has no label.
     """
 
     route: Route
     line: Line2D
     heads: tuple[Polygon, ...]
+    label: Text | None = None
 
 
 Segment = tuple[Point, Point]
@@ -628,6 +633,11 @@ def draw_edge(
 ) -> DrawnEdge:
     """Draw one routed edge, with arrowheads, into ``axes``.
 
+    A label is centred on the middle of the route's longest segment, in
+    the edge's colour at ``theme.edge_label_size``, on a pad of the theme
+    background (white when the background is transparent) that hides
+    the line beneath it. Labels sit above boxes and edges.
+
     Arrowheads are filled triangles ``ARROW_LENGTH`` by ``ARROW_WIDTH`` times
     ``theme.arrow_size`` points, always solid whatever the line style. A tip
     touches the outside of its box's outline: it sits half the outline width
@@ -637,7 +647,7 @@ def draw_edge(
 
     Args:
         axes: Axes set up by ``setup_axes``.
-        edge: Supplies the style and arrow ends.
+        edge: Supplies the style, arrow ends and label.
         path: The edge's route from ``flowgram.edges.route``.
         theme: Supplies the default colour, width and arrow size.
         scale: Inches per unit, to convert point sizes to units.
@@ -645,7 +655,7 @@ def draw_edge(
         dst_outline: Outline width of the destination box, in points.
 
     Returns:
-        The line and arrowhead artists that were added.
+        The line, arrowhead and label artists that were added.
     """
     look = edge_look(edge, theme)
     to_units = 1 / (POINTS_PER_INCH * scale)
@@ -685,7 +695,36 @@ def draw_edge(
         )
         axes.add_patch(patch)
         patches.append(patch)
-    return DrawnEdge(route=path, line=line, heads=tuple(patches))
+    label = _draw_edge_label(axes, edge, path, look, theme)
+    return DrawnEdge(route=path, line=line, heads=tuple(patches), label=label)
+
+
+def _draw_edge_label(
+    axes: Axes, edge: Edge, path: Route, look: EdgeLook, theme: Theme
+) -> Text | None:
+    if not edge.label:
+        return None
+    x, y = label_point(path.points)
+    return axes.text(
+        x,
+        y,
+        edge.label,
+        color=look.color,
+        fontfamily=theme.font_family,
+        fontsize=theme.edge_label_size,
+        horizontalalignment="center",
+        verticalalignment="center",
+        multialignment="center",
+        linespacing=LINE_SPACING,
+        parse_math=False,
+        zorder=Z_EDGE_LABEL,
+        bbox={
+            "boxstyle": f"square,pad={EDGE_LABEL_PAD}",
+            "facecolor": theme.background or "white",
+            "edgecolor": "none",
+            "linewidth": 0,
+        },
+    )
 
 
 def draw_edges(axes: Axes, diagram: Diagram, layout: Layout) -> tuple[DrawnEdge, ...]:
