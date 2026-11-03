@@ -7,10 +7,10 @@ formatting at 88 columns spreads it further. Run this file to write
 ``card_flow.png`` next to it.
 
 Body text is muted under a dark title with a role ``subtitle`` colour, and
-the tall cards keep their text at the top with looser line spacing. Not
-covered yet, and tracked as issues: a separately styled diagram subtitle
-(#67), a footnote (#68), group panels with badges, headings and captions
-(#32), and shadows (#69).
+the tall cards keep their text at the top with looser line spacing. The
+diagram subtitle is larger and muted, apart from the card bodies. Not covered
+yet, and tracked as issues: a footnote (#68), group panels with badges,
+headings and captions (#32), and shadows (#69).
 """
 
 from pathlib import Path
@@ -22,6 +22,8 @@ theme = Theme.light().model_copy(
     update={
         "background": "#F8FAFC",
         "title_size": 22,
+        "title_subtitle_size": 12.5,
+        "title_subtitle_color": MUTED,
         "label_size": 14,
         "eyebrow_size": 8.5,
         "text_align": "left",

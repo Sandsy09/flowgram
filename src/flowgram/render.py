@@ -14,7 +14,7 @@ during layout fits the boxes it was measured for.
 import math
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from matplotlib import rc_context
 from matplotlib.axes import Axes
@@ -133,11 +133,16 @@ class Frame:
         return self.bottom - self.top
 
 
+TitleKind = Literal["title", "subtitle"]
+"""Which line of the title band a ``TitleLine`` is."""
+
+
 @dataclass(frozen=True, slots=True)
 class TitleLine:
     """The diagram title or subtitle, measured in units.
 
     Attributes:
+        kind: ``"title"`` or ``"subtitle"``.
         text: What the line says. It may contain newlines.
         size: Font size in points.
         weight: ``"normal"`` or ``"bold"``.
@@ -146,6 +151,7 @@ class TitleLine:
         height: Height of all its lines of text.
     """
 
+    kind: TitleKind
     text: str
     size: float
     weight: FontWeight
@@ -175,8 +181,9 @@ class TitleBand:
 def title_band(diagram: Diagram) -> TitleBand | None:
     """Measure the diagram's title and subtitle.
 
-    The title uses ``theme.title_size`` and ``theme.title_weight``, and the
-    subtitle uses ``theme.subtitle_size`` and ``theme.subtitle_weight``. The
+    The title uses ``theme.title_size`` and ``theme.title_weight``. The
+    subtitle uses ``theme.title_subtitle_size``, or ``theme.subtitle_size``
+    when that is ``None``, and ``theme.subtitle_weight``. The
     subtitle sits ``theme.tier_gap`` title sizes below the title, as box
     tiers do, and lines are ``theme.line_spacing`` font sizes apart.
 
@@ -188,13 +195,14 @@ def title_band(diagram: Diagram) -> TitleBand | None:
     """
     theme = diagram.theme
     to_units = 1 / (POINTS_PER_INCH * diagram.scale)
-    specs: list[tuple[str | None, float, FontWeight]] = [
-        (diagram.title, theme.title_size, theme.title_weight),
-        (diagram.subtitle, theme.subtitle_size, theme.subtitle_weight),
+    subtitle_size = theme.title_subtitle_size or theme.subtitle_size
+    specs: list[tuple[TitleKind, str | None, float, FontWeight]] = [
+        ("title", diagram.title, theme.title_size, theme.title_weight),
+        ("subtitle", diagram.subtitle, subtitle_size, theme.subtitle_weight),
     ]
     lines: list[TitleLine] = []
     top = 0.0
-    for text, size, weight in specs:
+    for kind, text, size, weight in specs:
         if not text:
             continue
         if lines:
@@ -207,7 +215,7 @@ def title_band(diagram: Diagram) -> TitleBand | None:
             diagram.scale,
             line_spacing=theme.line_spacing,
         )
-        lines.append(TitleLine(text, size, weight, top, width, height))
+        lines.append(TitleLine(kind, text, size, weight, top, width, height))
         top += height
     if not lines:
         return None
@@ -509,9 +517,10 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
     """Draw the diagram's title and subtitle at the top of ``frame``.
 
     The lines sit one padding in from the top and sides of the frame and are
-    aligned across it by ``theme.title_align``. Their colour is
+    aligned across it by ``theme.title_align``. The title's colour is
     ``theme.title_color``, or the ``default`` role's text colour when that is
-    ``None``.
+    ``None``. The subtitle's is ``theme.title_subtitle_color``, or the
+    title's colour when that is ``None``.
 
     Args:
         axes: Axes set up by ``setup_axes`` to show ``frame``.
@@ -530,13 +539,17 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
     align = theme.title_align
     inner = Rect(frame.left + pad, frame.top, frame.width - 2 * pad, frame.height)
     x = _text_x(inner, align, 0.0)
-    color = theme.title_color or theme.roles["default"].text
+    title_color = theme.title_color or theme.roles["default"].text
+    colors: dict[TitleKind, str] = {
+        "title": title_color,
+        "subtitle": theme.title_subtitle_color or title_color,
+    }
     return tuple(
         axes.text(
             x,
             frame.top + pad + line.top,
             line.text,
-            color=color,
+            color=colors[line.kind],
             fontfamily=theme.font_family,
             fontsize=line.size,
             fontweight=line.weight,

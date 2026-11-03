@@ -71,7 +71,8 @@ class Theme(Spec):
         roles: Maps a role name to its colours. Must include ``"default"``.
         font_family: Font family used for all text.
         title_size: Diagram title size in points.
-        subtitle_size: Diagram and box subtitle size in points.
+        subtitle_size: Box subtitle size in points, and the diagram
+            subtitle's unless ``title_subtitle_size`` is set.
         label_size: Box label size in points.
         eyebrow_size: Box eyebrow size in points.
         edge_label_size: Edge label size in points.
@@ -89,11 +90,15 @@ class Theme(Spec):
             multiple of the label size. The diagram subtitle sits this many
             title sizes below the title.
         title_weight: Weight of the diagram title. Its subtitle uses
-            ``subtitle_size`` and ``subtitle_weight``.
+            ``subtitle_weight``.
         title_align: Alignment of the diagram title and subtitle across
             the figure.
-        title_color: Colour of the diagram title and subtitle, or ``None``
-            for the ``default`` role's text colour.
+        title_color: Colour of the diagram title, or ``None`` for the
+            ``default`` role's text colour.
+        title_subtitle_size: Diagram subtitle size in points, or ``None``
+            for ``subtitle_size``, the box subtitle size.
+        title_subtitle_color: Diagram subtitle colour, or ``None`` for the
+            title's colour.
         line_width: Default box outline width in points.
         corner_radius: Default box corner radius in units.
         gap: Default space between children of a Row or Column, in units.
@@ -125,6 +130,8 @@ class Theme(Spec):
     title_weight: FontWeight = "bold"
     title_align: TextAlign = "left"
     title_color: Colour | None = None
+    title_subtitle_size: Positive | None = None
+    title_subtitle_color: Colour | None = None
 
     line_width: Positive = 1.5
     corner_radius: NonNegative = 0.15
