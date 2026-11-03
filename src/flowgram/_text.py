@@ -1,13 +1,17 @@
 """Measure box text in abstract units, without drawing anything.
 
-Text is measured with matplotlib's own text layout on an off-screen Agg
-canvas, so sizes match what the renderer draws later. Font sizes are in
-points and do not follow ``Diagram.scale``: at a larger scale the same text
-takes fewer units.
+Widths come from matplotlib's own text layout on an off-screen Agg canvas,
+so they match what the renderer draws later. Heights and baselines come from
+the font's ascent and descent, not from the letters on each line, so every
+line of a given size is the same height and lines sit at an even pitch.
+Font sizes are in points and do not follow ``Diagram.scale``: at a larger
+scale the same text takes fewer units.
 """
 
+import struct
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from matplotlib import font_manager
@@ -83,42 +87,118 @@ def _check_font(family: str) -> None:
         raise ValueError(msg) from None
 
 
-@lru_cache(maxsize=4096)
-def _extent_points(
-    text: str, size: float, weight: FontWeight, family: str, line_spacing: float
-) -> tuple[float, float]:
-    """Return the ``(width, height)`` of ``text`` in points.
+def _typo_metrics(path: str) -> tuple[int, int] | None:
+    """Read ``sTypoAscender`` and ``sTypoDescender`` from a font file.
 
-    Both come from matplotlib's own text layout, the same one that draws the
-    text later. Width is the extent of ``text`` itself. Height is the extent
-    of a stand-in with the same number of lines, each reading ``"lp"``
-    (matplotlib's reference line), so every line at a given size and weight
-    is the same height whatever its letters, on every matplotlib version.
-    Text is never parsed as mathtext, matching the renderer.
+    They live in the ``OS/2`` table of a TrueType or OpenType font, or of
+    the first font in a collection. Older matplotlib does not expose them,
+    so the table is read directly.
+
+    Returns:
+        The two values in font units, or ``None`` when the font has no
+        ``OS/2`` table.
+    """
+    data = Path(path).read_bytes()
+    start = 0
+    if data[:4] == b"ttcf":
+        (start,) = struct.unpack_from(">I", data, 12)
+    (tables,) = struct.unpack_from(">H", data, start + 4)
+    for index in range(tables):
+        tag, _, offset, _ = struct.unpack_from(">4sIII", data, start + 12 + 16 * index)
+        if tag == b"OS/2":
+            ascent, descent = struct.unpack_from(">hh", data, offset + 68)
+            return ascent, descent
+    return None
+
+
+@lru_cache(maxsize=64)
+def _font_metrics(family: str, weight: FontWeight) -> tuple[float, float]:
+    """Return the font's ``(ascent, descent)`` as fractions of its size.
+
+    These are the typographic metrics from the font's ``OS/2`` table, the
+    ones matplotlib 3.11 uses for line height, or FreeType's when the font
+    has no such table. Both are positive, and they are the same on every
+    matplotlib version.
+    """
+    path = font_manager.findfont(
+        font_manager.FontProperties(family=family, weight=weight)
+    )
+    font = font_manager.get_font(path)
+    metrics = _typo_metrics(path)
+    ascent, descent = (font.ascender, font.descender) if metrics is None else metrics
+    return ascent / font.units_per_EM, -descent / font.units_per_EM
+
+
+def _line_height_points(
+    size: float, weight: FontWeight, family: str, line_spacing: float
+) -> float:
+    ascent, descent = _font_metrics(family, weight)
+    return line_spacing * (ascent + descent) * size
+
+
+@lru_cache(maxsize=4096)
+def _width_points(text: str, size: float, weight: FontWeight, family: str) -> float:
+    """Return the width of the widest line of ``text`` in points.
+
+    It comes from matplotlib's own text layout, the same one that draws the
+    text later. Text is never parsed as mathtext, matching the renderer.
     """
     figure, canvas = _canvas()
     props = font_manager.FontProperties(family=family, size=size, weight=weight)
     # matplotlib's stubs leave FigureCanvasAgg.get_renderer unannotated.
     renderer = canvas.get_renderer()  # type: ignore[no-untyped-call]
+    artist = Text(0, 0, text, fontproperties=props, parse_math=False)
+    artist.set_figure(figure)
+    return float(artist.get_window_extent(renderer).width) * POINTS_PER_INCH / _DPI
 
-    def extent(content: str) -> tuple[float, float]:
-        artist = Text(
-            0,
-            0,
-            content,
-            fontproperties=props,
-            linespacing=line_spacing,
-            parse_math=False,
-        )
-        artist.set_figure(figure)
-        box = artist.get_window_extent(renderer)
-        return box.width, box.height
 
-    width, _ = extent(text)
+def _extent_points(
+    text: str, size: float, weight: FontWeight, family: str, line_spacing: float
+) -> tuple[float, float]:
+    """Return the ``(width, height)`` of ``text`` in points."""
     lines = text.count("\n") + 1
-    _, height = extent("\n".join(["lp"] * lines))
-    scale = _DPI / POINTS_PER_INCH
-    return width / scale, height / scale
+    height = lines * _line_height_points(size, weight, family, line_spacing)
+    return _width_points(text, size, weight, family), height
+
+
+def baselines(
+    text: str,
+    size: float,
+    weight: FontWeight,
+    family: str,
+    scale: float,
+    *,
+    line_spacing: float,
+) -> tuple[float, ...]:
+    """Place each line's baseline below the top of the text, in units.
+
+    Every line is ``line_spacing`` times the font's ascent plus descent
+    tall, with the extra space split evenly above and below, as in CSS. So
+    lines sit at an even pitch, and text of one size and font shares its
+    baselines whatever its letters.
+
+    Args:
+        text: The text, with lines broken at newline characters.
+        size: Font size in points.
+        weight: ``"normal"`` or ``"bold"``.
+        family: An installed font family.
+        scale: Inches per unit, as in ``Diagram.scale``.
+        line_spacing: Distance between lines as a multiple of the font's
+            height, as in ``Theme.line_spacing``.
+
+    Returns:
+        One distance per line, top to bottom.
+
+    Raises:
+        ValueError: If the font family is not installed.
+    """
+    _check_font(family)
+    ascent, descent = _font_metrics(family, weight)
+    pitch = _line_height_points(size, weight, family, line_spacing)
+    first = (pitch - (ascent + descent) * size) / 2 + ascent * size
+    to_units = 1 / (POINTS_PER_INCH * scale)
+    lines = text.count("\n") + 1
+    return tuple((first + k * pitch) * to_units for k in range(lines))
 
 
 def text_size(
@@ -132,8 +212,9 @@ def text_size(
 ) -> tuple[float, float]:
     """Measure one piece of text in units, such as a diagram title.
 
-    Lines break only at newline characters. Height counts every line at the
-    font's full line height, as in ``measure_text``.
+    Lines break only at newline characters. Every line is
+    ``line_spacing`` times the font's ascent plus descent tall, as in
+    ``measure_text``.
 
     Args:
         text: The text to measure.
@@ -166,10 +247,11 @@ def measure_text(
 ) -> TextBlock:
     """Measure a box's eyebrow, label and subtitle in units.
 
-    Each tier uses its theme size and weight, with lines
-    ``theme.line_spacing`` font sizes apart. Tiers are stacked top to bottom
-    with a gap of ``theme.tier_gap`` label sizes between them. Missing or
-    empty tiers are skipped. Lines break only at newline characters.
+    Each tier uses its theme size and weight. Each line is
+    ``theme.line_spacing`` times the font's ascent plus descent tall, which
+    for DejaVu Sans is ``theme.line_spacing`` font sizes. Tiers are stacked
+    top to bottom with a gap of ``theme.tier_gap`` label sizes between them.
+    Missing or empty tiers are skipped. Lines break only at newline characters.
 
     Args:
         label: The main text.

@@ -24,7 +24,13 @@ from matplotlib.patches import FancyBboxPatch, Polygon
 from matplotlib.text import Text
 
 from flowgram._base import FontWeight, TextAlign, TextVAlign
-from flowgram._text import POINTS_PER_INCH, TierKind, measure_text, text_size
+from flowgram._text import (
+    POINTS_PER_INCH,
+    TierKind,
+    baselines,
+    measure_text,
+    text_size,
+)
 from flowgram.components import Box, Child, Column, Edge, EdgeStyle, Row
 from flowgram.diagram import Diagram
 from flowgram.edges import Route, label_point, route
@@ -385,8 +391,8 @@ class DrawnBox:
 
     Attributes:
         patch: The rounded rectangle.
-        texts: One text artist per tier present, top to bottom: eyebrow,
-            label, subtitle.
+        texts: One text artist per non-empty line, top to bottom: the
+            eyebrow's lines, then the label's, then the subtitle's.
     """
 
     patch: FancyBboxPatch
@@ -399,6 +405,46 @@ def _text_x(rect: Rect, align: TextAlign, inset: float) -> float:
     if align == "right":
         return rect.right - inset
     return rect.center[0]
+
+
+def _draw_lines(
+    axes: Axes,
+    x: float,
+    top: float,
+    text: str,
+    *,
+    size: float,
+    weight: FontWeight,
+    color: str,
+    align: TextAlign,
+    theme: Theme,
+    scale: float,
+) -> list[Text]:
+    """Draw ``text`` one artist per line, each on its own baseline.
+
+    Baselines come from ``baselines``, so they depend on the font and not on
+    the letters of each line. Empty lines keep their space but draw nothing.
+    """
+    offsets = baselines(
+        text, size, weight, theme.font_family, scale, line_spacing=theme.line_spacing
+    )
+    return [
+        axes.text(
+            x,
+            top + offset,
+            line,
+            color=color,
+            fontfamily=theme.font_family,
+            fontsize=size,
+            fontweight=weight,
+            horizontalalignment=align,
+            verticalalignment="baseline",
+            parse_math=False,
+            zorder=Z_BOX_TEXT,
+        )
+        for line, offset in zip(text.split("\n"), offsets, strict=True)
+        if line
+    ]
 
 
 def _tier_color(kind: TierKind, look: BoxLook) -> str:
@@ -424,7 +470,8 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
 
     The box is a rounded rectangle filling ``rect``, with its corner radius
     capped at half the shorter side. The text is measured exactly as layout
-    measured it, each tier at the offset the measurement gave it. The stack of
+    measured it, each tier at the offset the measurement gave it and each
+    line on the baseline ``baselines`` gives it. The stack of
     tiers is centred vertically in the box, or starts ``theme.text_padding``
     below the top border when the box's ``text_valign`` is ``"top"``. Left-
     and right-aligned text is inset by ``theme.text_padding`` too.
@@ -466,22 +513,17 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
     texts: list[Text] = []
     for tier in block.tiers:
         size, weight = _tier_font(tier.kind, theme)
-        texts.append(
-            axes.text(
-                x,
-                top + tier.top,
-                tier.text,
-                color=_tier_color(tier.kind, look),
-                fontfamily=theme.font_family,
-                fontsize=size,
-                fontweight=weight,
-                horizontalalignment=look.text_align,
-                multialignment=look.text_align,
-                verticalalignment="top",
-                linespacing=theme.line_spacing,
-                parse_math=False,
-                zorder=Z_BOX_TEXT,
-            )
+        texts += _draw_lines(
+            axes,
+            x,
+            top + tier.top,
+            tier.text,
+            size=size,
+            weight=weight,
+            color=_tier_color(tier.kind, look),
+            align=look.text_align,
+            theme=theme,
+            scale=scale,
         )
     return DrawnBox(patch=patch, texts=tuple(texts))
 
@@ -528,8 +570,8 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
         frame: The frame from ``frame(diagram, layout)``.
 
     Returns:
-        The text artists added, title first. Empty when there is no title or
-        subtitle.
+        The text artists added, one per non-empty line, title first. Empty
+        when there is no title or subtitle.
     """
     band = title_band(diagram)
     if band is None:
@@ -544,24 +586,21 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
         "title": title_color,
         "subtitle": theme.title_subtitle_color or title_color,
     }
-    return tuple(
-        axes.text(
+    texts: list[Text] = []
+    for line in band.lines:
+        texts += _draw_lines(
+            axes,
             x,
             frame.top + pad + line.top,
             line.text,
+            size=line.size,
+            weight=line.weight,
             color=colors[line.kind],
-            fontfamily=theme.font_family,
-            fontsize=line.size,
-            fontweight=line.weight,
-            horizontalalignment=align,
-            multialignment=align,
-            verticalalignment="top",
-            linespacing=theme.line_spacing,
-            parse_math=False,
-            zorder=Z_BOX_TEXT,
+            align=align,
+            theme=theme,
+            scale=diagram.scale,
         )
-        for line in band.lines
-    )
+    return tuple(texts)
 
 
 @dataclass(frozen=True, slots=True)

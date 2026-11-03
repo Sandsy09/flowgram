@@ -4,10 +4,14 @@ Exact sizes depend on the platform's font rendering, so these tests assert
 relations and tolerances rather than exact numbers.
 """
 
-import pytest
+import struct
+from pathlib import Path
 
-from flowgram import Theme
-from flowgram._text import measure_text, text_size
+import pytest
+from matplotlib import font_manager
+
+from flowgram import Theme, _text
+from flowgram._text import baselines, measure_text, text_size
 
 THEME = Theme.light()
 
@@ -129,18 +133,97 @@ def test_looser_line_spacing_adds_height_between_lines() -> None:
     loose = THEME.model_copy(update={"line_spacing": 1.8})
     tight = measure_text("Raw\ndata", THEME, 1.0)
     spaced = measure_text("Raw\ndata", loose, 1.0)
-    # Older matplotlib spaces lines by the font's ascent, so the gap grows by
-    # less than a full size; matplotlib 3.11 spaces the first line too.
+    # Each of the two lines grows by the extra spacing. DejaVu Sans's ascent
+    # plus descent is exactly one font size.
     extra = (1.8 - THEME.line_spacing) * THEME.label_size / 72
-    assert extra / 2 <= spaced.height - tight.height <= 2 * extra + 0.01
+    assert spaced.height - tight.height == pytest.approx(2 * extra)
     assert spaced.width == pytest.approx(tight.width)
 
 
-@pytest.mark.parametrize("tier_gap", [0.0, 0.8])
-def test_tier_gap_sets_the_space_between_tiers(tier_gap: float) -> None:
-    theme = THEME.model_copy(update={"tier_gap": tier_gap})
-    block = measure_text("Clean", theme, 1.0, eyebrow="STEP", subtitle="impute")
-    gap = THEME.label_size * tier_gap / 72
-    eyebrow, label, subtitle = block.tiers
-    assert label.top == pytest.approx(eyebrow.height + gap)
-    assert subtitle.top == pytest.approx(label.top + label.height + gap)
+def test_lines_are_the_same_height_whatever_their_letters() -> None:
+    heights = {measure_text(text, THEME, 1.0).height for text in ["x", "Ág", ",", "|"]}
+    assert len(heights) == 1
+    assert heights.pop() == pytest.approx(THEME.line_spacing * THEME.label_size / 72)
+
+
+@pytest.mark.parametrize("line_spacing", [1.0, 1.2, 1.8])
+@pytest.mark.parametrize("scale", [0.5, 1.0])
+def test_baselines_are_evenly_spaced_inside_the_measured_height(
+    line_spacing: float, scale: float
+) -> None:
+    text = "one\ntwo\nthree"
+    size = 11.0
+    ys = baselines(
+        text, size, "normal", "DejaVu Sans", scale, line_spacing=line_spacing
+    )
+    height = text_size(
+        text, size, "normal", "DejaVu Sans", scale, line_spacing=line_spacing
+    )[1]
+    ascent, descent = _text._font_metrics("DejaVu Sans", "normal")
+    to_units = 1 / (72 * scale)
+    pitch = line_spacing * size * to_units
+    half_leading = (line_spacing - 1) * size * to_units / 2
+    assert ys == pytest.approx(
+        [half_leading + ascent * size * to_units + k * pitch for k in range(3)]
+    )
+    # The last line's descent and half its leading end the text.
+    assert ys[-1] + descent * size * to_units + half_leading == pytest.approx(height)
+
+
+def test_baselines_check_the_font() -> None:
+    with pytest.raises(ValueError, match="'No Such Sans' is not installed"):
+        baselines("x", 11, "normal", "No Such Sans", 1.0, line_spacing=1.2)
+
+
+def test_dejavu_metrics_come_from_its_os2_table() -> None:
+    ascent, descent = _text._font_metrics("DejaVu Sans", "bold")
+    assert (ascent * 2048, descent * 2048) == pytest.approx((1556, 492))
+
+
+def _font_file(path: Path, tables: dict[bytes, bytes], *, collection: bool) -> str:
+    """Write a minimal font file holding just ``tables``."""
+    body = b""
+    start = 16 if collection else 0
+    offset = start + 12 + 16 * len(tables)
+    records = b""
+    for tag, table in tables.items():
+        records += struct.pack(">4sIII", tag, 0, offset + len(body), len(table))
+        body += table
+    font = struct.pack(">IHHHH", 0x00010000, len(tables), 0, 0, 0) + records + body
+    if collection:
+        font = struct.pack(">4sIII", b"ttcf", 0x00010000, 1, start) + font
+    path.write_bytes(font)
+    return str(path)
+
+
+@pytest.mark.parametrize("collection", [False, True])
+def test_typo_metrics_are_read_from_the_os2_table(
+    tmp_path: Path, collection: bool
+) -> None:
+    os2 = bytes(68) + struct.pack(">hh", 800, -200) + bytes(20)
+    tables = {b"head": bytes(54), b"OS/2": os2}
+    font = _font_file(tmp_path / "font.ttf", tables, collection=collection)
+    assert _text._typo_metrics(font) == (800, -200)
+
+
+def test_typo_metrics_are_none_without_an_os2_table(tmp_path: Path) -> None:
+    font = _font_file(tmp_path / "font.ttf", {b"head": bytes(54)}, collection=False)
+    assert _text._typo_metrics(font) is None
+
+
+class _FreeTypeFont:
+    ascender = 900
+    descender = -300
+    units_per_EM = 1000  # noqa: N815 (FreeType's name)
+
+
+def test_metrics_fall_back_to_freetype_without_an_os2_table(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(font_manager, "get_font", lambda path: _FreeTypeFont())
+    monkeypatch.setattr(_text, "_typo_metrics", lambda path: None)
+    _text._font_metrics.cache_clear()
+    try:
+        assert _text._font_metrics("DejaVu Sans", "normal") == pytest.approx((0.9, 0.3))
+    finally:
+        _text._font_metrics.cache_clear()

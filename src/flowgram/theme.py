@@ -83,9 +83,10 @@ class Theme(Spec):
         text_valign: Default vertical placement of text inside boxes:
             ``"center"``, or ``"top"`` to start it one ``text_padding`` below
             the top border. It only shows on boxes taller than their text.
-        line_spacing: Distance between lines of one piece of text, as a
-            multiple of its font size. Used for box text, the diagram title
-            and edge labels.
+        line_spacing: Distance between the baselines of one piece of text,
+            as a multiple of the font's ascent plus descent, which for
+            DejaVu Sans is its font size. Used for box text, the diagram
+            title and edge labels.
         tier_gap: Space between a box's eyebrow, label and subtitle, as a
             multiple of the label size. The diagram subtitle sits this many
             title sizes below the title.
