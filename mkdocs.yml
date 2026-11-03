@@ -36,6 +36,7 @@ plugins:
 
 nav:
   - Home: index.md
+  - Gallery: gallery/index.md
   - Design:
       - MVP spec: design/spec.md
       - Roadmap: design/roadmap.md
@@ -52,5 +53,7 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.snippets:
+      check_paths: true
   - toc:
       permalink: true
