@@ -71,10 +71,10 @@ class TestBox:
         assert box.eyebrow_color is None
 
     def test_three_text_tiers(self) -> None:
-        box = Box(eyebrow="MODEL A", label="Customer PD", subtitle="Baseline\nrisk")
+        box = Box(eyebrow="STEP 2", label="Health score", subtitle="Baseline\nrisk")
         assert (box.eyebrow, box.label, box.subtitle) == (
-            "MODEL A",
-            "Customer PD",
+            "STEP 2",
+            "Health score",
             "Baseline\nrisk",
         )
 

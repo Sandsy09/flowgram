@@ -194,9 +194,9 @@ def test_text_styling_round_trips_through_json() -> None:
     theme = Theme(roles=roles, text_align="left", subtitle_weight="bold")
     card = Box(
         id="pd",
-        eyebrow="MODEL A",
-        label="Customer PD",
-        subtitle="Baseline risk",
+        eyebrow="STEP 2",
+        label="Health score",
+        subtitle="Baseline wear",
         text_align="right",
         eyebrow_color="tab:green",
     )

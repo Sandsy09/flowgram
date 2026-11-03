@@ -30,7 +30,7 @@ def test_subtitle_adds_height_and_a_gap() -> None:
 
 
 def test_eyebrow_sits_above_the_label() -> None:
-    block = measure_text("Customer PD", THEME, 1.0, eyebrow="MODEL A", subtitle="x")
+    block = measure_text("Health score", THEME, 1.0, eyebrow="STEP 2", subtitle="x")
     assert [tier.kind for tier in block.tiers] == ["eyebrow", "label", "subtitle"]
     assert block.tiers[0].top == 0
     tops = [tier.top for tier in block.tiers]
