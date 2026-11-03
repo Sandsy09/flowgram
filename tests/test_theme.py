@@ -157,6 +157,18 @@ def test_diagram_subtitle_styling_falls_back_by_default() -> None:
     assert (theme.title_subtitle_size, theme.title_subtitle_color) == (None, None)
 
 
+def test_footnote_styling_falls_back_by_default() -> None:
+    theme = Theme.light()
+    assert (theme.footnote_size, theme.footnote_color) == (None, None)
+
+
+def test_footnote_styling_is_checked() -> None:
+    with pytest.raises(ValidationError, match="footnote_color"):
+        _theme(footnote_color="not-a-colour")
+    with pytest.raises(ValidationError, match="footnote_size"):
+        _theme(footnote_size=0)
+
+
 def test_diagram_subtitle_styling_is_checked() -> None:
     with pytest.raises(ValidationError, match="title_subtitle_color"):
         _theme(title_subtitle_color="not-a-colour")

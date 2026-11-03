@@ -32,6 +32,8 @@ class Diagram(Spec):
         theme: Colours, type and spacing. Defaults to the light theme.
         title: Optional heading above the diagram.
         subtitle: Optional smaller line under the title.
+        footnote: Optional note under the content, such as a source or a
+            caveat, aligned like the title.
         scale: Inches per abstract unit when the figure is built.
         padding: Margin around the content, in units.
     """
@@ -43,6 +45,7 @@ class Diagram(Spec):
     theme: Theme = Field(default_factory=Theme.light)
     title: str | None = None
     subtitle: str | None = None
+    footnote: str | None = None
     scale: Positive = 1.0
     padding: NonNegative = 0.5
 

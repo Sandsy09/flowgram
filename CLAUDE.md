@@ -111,7 +111,7 @@ first, as the roadmap asks; its fixes block the export and loading issues.
    - Separate subtitle colour for boxes (#65).
    - Top-aligned box text, and `line_spacing` and `tier_gap` in the theme (#66).
    - Diagram subtitle styled apart from box subtitles (#67).
-   - Diagram footnote (#68) needs the user's decision on scope before it starts.
+   - Diagram footnote under the content (#68).
 2. `Diagram.save(path, dpi, transparent)` to PNG, SVG and PDF (#21), then byte-identical
    re-renders (#22).
 3. Jupyter display, PNG by default with SVG on request (#23).
