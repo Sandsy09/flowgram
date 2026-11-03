@@ -95,6 +95,8 @@ def rc_params(theme: Theme) -> "dict[RcKeyType, Any]":
       width, so dashed and dotted edges look the same everywhere.
     - SVG ids use a fixed salt, and SVG text stays as editable text.
     - PDF and PostScript embed TrueType fonts, which slide software can edit.
+    - Saving keeps the figure's own size and background, and PDF uses
+      matplotlib's default compression.
 
     Args:
         theme: Supplies the font family.
@@ -114,6 +116,10 @@ def rc_params(theme: Theme) -> "dict[RcKeyType, Any]":
         "svg.fonttype": "none",
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
+        "pdf.compression": 6,
+        "savefig.bbox": "standard",
+        "savefig.facecolor": "auto",
+        "savefig.edgecolor": "auto",
     }
 
 
@@ -983,7 +989,7 @@ def render(diagram: Diagram) -> Figure:
     to the content, the title band, the footnote and the padding, at
     ``scale`` inches per unit, and drawn with ``rc_params(theme)``. It is
     built without pyplot, so it is not shown or tracked by pyplot. Display
-    it in Jupyter as the cell's result, or save it with ``savefig``.
+    it in Jupyter as the cell's result, or write a file with ``Diagram.save``.
 
     Args:
         diagram: The diagram to draw.
