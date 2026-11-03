@@ -152,3 +152,16 @@ def test_left_aligned_variant() -> None:
     left = Theme.light().model_copy(update={"text_align": "left"})
     assert left.text_align == "left"
     assert Theme.light().text_align == "center"
+
+
+def test_role_subtitle_colour_is_optional() -> None:
+    assert _role().subtitle is None
+    role = RoleStyle(
+        fill="#FFFFFF", stroke="#000000", text="#111111", subtitle="tab:gray"
+    )
+    assert role.subtitle == "tab:gray"
+
+
+def test_role_with_bad_subtitle_colour_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="subtitle"):
+        RoleStyle(fill="#FFFFFF", stroke="#000000", text="#111111", subtitle="nope")

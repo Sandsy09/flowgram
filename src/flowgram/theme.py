@@ -23,14 +23,18 @@ class RoleStyle(Spec):
     Attributes:
         fill: Box background colour.
         stroke: Box outline colour.
-        text: Label and subtitle colour drawn on top of the fill.
+        text: Label colour drawn on top of the fill, and the eyebrow and
+            subtitle colour when those are ``None``.
         eyebrow: Eyebrow colour, or ``None`` to use ``text``.
+        subtitle: Subtitle colour, or ``None`` to use ``text``. Set it to
+            mute body text under a darker label.
     """
 
     fill: Colour
     stroke: Colour
     text: Colour
     eyebrow: Colour | None = None
+    subtitle: Colour | None = None
 
 
 def _light_roles() -> dict[str, RoleStyle]:

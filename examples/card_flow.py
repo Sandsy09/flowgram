@@ -6,17 +6,17 @@ with neutral text. The spec is 33 lines written one box or edge per line;
 formatting at 88 columns spreads it further. Run this file to write
 ``card_flow.png`` next to it.
 
-Not covered yet, and tracked as issues: muted body text under a dark title
-(#65), text at the top of tall cards with looser spacing (#66), a separately
-styled diagram subtitle (#67), a footnote (#68), group panels with badges,
-headings and captions (#32), and shadows (#69).
+Body text is muted under a dark title with a role ``subtitle`` colour. Not
+covered yet, and tracked as issues: text at the top of tall cards with looser
+spacing (#66), a separately styled diagram subtitle (#67), a footnote (#68),
+group panels with badges, headings and captions (#32), and shadows (#69).
 """
 
 from pathlib import Path
 
 from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
 
-INK, BLUE, GREEN = "#0F172A", "#2563EB", "#16A34A"
+INK, MUTED, BLUE, GREEN = "#0F172A", "#475569", "#2563EB", "#16A34A"
 theme = Theme.light().model_copy(
     update={
         "background": "#F8FAFC",
@@ -26,12 +26,18 @@ theme = Theme.light().model_copy(
         "text_align": "left",
         "line_width": 1.0,
         "roles": {
-            "default": RoleStyle(fill="#F1F5F9", stroke="#E2E8F0", text=INK),
+            "default": RoleStyle(
+                fill="#F1F5F9", stroke="#E2E8F0", text=INK, subtitle=MUTED
+            ),
             "health": RoleStyle(
-                fill="#FFFFFF", stroke="#BFDBFE", text=INK, eyebrow=BLUE
+                fill="#FFFFFF", stroke="#BFDBFE", text=INK, eyebrow=BLUE, subtitle=MUTED
             ),
             "repair": RoleStyle(
-                fill="#FFFFFF", stroke="#BBF7D0", text=INK, eyebrow=GREEN
+                fill="#FFFFFF",
+                stroke="#BBF7D0",
+                text=INK,
+                eyebrow=GREEN,
+                subtitle=MUTED,
             ),
         },
     }

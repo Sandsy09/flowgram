@@ -316,8 +316,9 @@ class BoxLook:
     Attributes:
         fill: Background colour.
         stroke: Outline colour.
-        text: Label and subtitle colour.
+        text: Label colour.
         eyebrow: Eyebrow colour.
+        subtitle: Subtitle colour.
         line_width: Outline width in points.
         corner_radius: Corner radius in units.
         text_align: Horizontal alignment of every line of text.
@@ -327,6 +328,7 @@ class BoxLook:
     stroke: str
     text: str
     eyebrow: str
+    subtitle: str
     line_width: float
     corner_radius: float
     text_align: TextAlign
@@ -336,9 +338,10 @@ def box_look(box: Box, theme: Theme) -> BoxLook:
     """Resolve a box's style from its overrides, its role and the theme.
 
     Each field takes the box's own value when set, then the theme role's,
-    then the theme's. The eyebrow colour falls back to the role's eyebrow
-    colour and then to the box's text colour, so overriding ``text_color``
-    alone recolours all of the box's text.
+    then the theme's. The eyebrow and subtitle colours each fall back to the
+    role's own eyebrow or subtitle colour and then to the box's text colour,
+    so overriding ``text_color`` alone recolours all of the box's text unless
+    its role gives the eyebrow or subtitle a colour of its own.
 
     Args:
         box: The box to style. Its ``role`` must exist in ``theme``, which
@@ -355,6 +358,7 @@ def box_look(box: Box, theme: Theme) -> BoxLook:
         stroke=box.stroke or role.stroke,
         text=text,
         eyebrow=box.eyebrow_color or role.eyebrow or text,
+        subtitle=box.subtitle_color or role.subtitle or text,
         line_width=theme.line_width if box.line_width is None else box.line_width,
         corner_radius=(
             theme.corner_radius if box.corner_radius is None else box.corner_radius
@@ -383,6 +387,15 @@ def _text_x(rect: Rect, align: TextAlign, inset: float) -> float:
     if align == "right":
         return rect.right - inset
     return rect.center[0]
+
+
+def _tier_color(kind: TierKind, look: BoxLook) -> str:
+    colors: dict[TierKind, str] = {
+        "eyebrow": look.eyebrow,
+        "label": look.text,
+        "subtitle": look.subtitle,
+    }
+    return colors[kind]
 
 
 def _tier_font(kind: TierKind, theme: Theme) -> tuple[float, FontWeight]:
@@ -442,7 +455,7 @@ def draw_box(axes: Axes, box: Box, rect: Rect, theme: Theme, scale: float) -> Dr
                 x,
                 top + tier.top,
                 tier.text,
-                color=look.eyebrow if tier.kind == "eyebrow" else look.text,
+                color=_tier_color(tier.kind, look),
                 fontfamily=theme.font_family,
                 fontsize=size,
                 fontweight=weight,
