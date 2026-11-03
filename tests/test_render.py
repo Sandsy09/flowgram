@@ -17,8 +17,15 @@ from matplotlib.transforms import Bbox
 
 import flowgram
 from flowgram import Box, Column, Diagram, Edge, RoleStyle, Row, Spacer, Theme
-from flowgram._base import TextAlign
-from flowgram._text import POINTS_PER_INCH, measure_text, text_size
+from flowgram._base import FontWeight, TextAlign
+from flowgram._text import (
+    POINTS_PER_INCH,
+    Tier,
+    TierKind,
+    baselines,
+    measure_text,
+    text_size,
+)
 from flowgram.components import EdgeStyle, Side
 from flowgram.edges import anchor, label_point, route
 from flowgram.layout import Layout, NodePath, Rect, layout
@@ -164,6 +171,27 @@ def _drawn(diagram: Diagram) -> tuple[Figure, Layout, dict[NodePath, DrawnBox]]:
 def _axes() -> Axes:
     diagram = _two_boxes()
     return new_figure(diagram, frame(diagram, layout(diagram)))[1]
+
+
+def _baselines(tier: Tier, theme: Theme = LIGHT) -> list[float]:
+    """Where each line of a measured tier sits below the tier's top."""
+    fonts: dict[TierKind, tuple[float, FontWeight]] = {
+        "eyebrow": (theme.eyebrow_size, theme.eyebrow_weight),
+        "label": (theme.label_size, theme.label_weight),
+        "subtitle": (theme.subtitle_size, theme.subtitle_weight),
+    }
+    size, weight = fonts[tier.kind]
+    return [
+        tier.top + offset
+        for offset in baselines(
+            tier.text,
+            size,
+            weight,
+            theme.font_family,
+            1,
+            line_spacing=theme.line_spacing,
+        )
+    ]
 
 
 def _extent(figure: Figure, artist: object) -> Bbox:
@@ -331,9 +359,9 @@ class TestDrawBox:
         block = measure_text("Model", LIGHT, 1, subtitle="boosting", eyebrow="STEP")
         top = 2 + (1.5 - block.height) / 2
         assert [t.get_position()[1] for t in texts] == pytest.approx(
-            [top + tier.top for tier in block.tiers]
+            [top + y for tier in block.tiers for y in _baselines(tier)]
         )
-        assert all(t.get_verticalalignment() == "top" for t in texts)
+        assert all(t.get_verticalalignment() == "baseline" for t in texts)
 
     def test_top_aligned_text_starts_one_padding_below_the_top(self) -> None:
         box = Box(label="Model", subtitle="boosting", eyebrow="STEP", text_valign="top")
@@ -341,20 +369,26 @@ class TestDrawBox:
         block = measure_text("Model", LIGHT, 1, subtitle="boosting", eyebrow="STEP")
         top = 2 + LIGHT.text_padding
         assert [t.get_position()[1] for t in texts] == pytest.approx(
-            [top + tier.top for tier in block.tiers]
+            [top + y for tier in block.tiers for y in _baselines(tier)]
         )
 
     def test_theme_top_alignment_applies_to_every_box(self) -> None:
         theme = LIGHT.model_copy(update={"text_valign": "top"})
         (text,) = draw_box(_axes(), Box(label="x"), self.RECT, theme, 1).texts
-        assert text.get_position()[1] == pytest.approx(2 + theme.text_padding)
+        (tier,) = measure_text("x", theme, 1).tiers
+        assert text.get_position()[1] == pytest.approx(
+            2 + theme.text_padding + _baselines(tier, theme)[0]
+        )
 
     def test_box_can_centre_text_under_a_top_aligned_theme(self) -> None:
         theme = LIGHT.model_copy(update={"text_valign": "top"})
         box = Box(label="x", text_valign="center")
         (text,) = draw_box(_axes(), box, self.RECT, theme, 1).texts
         block = measure_text("x", theme, 1)
-        assert text.get_position()[1] == pytest.approx(2 + (1.5 - block.height) / 2)
+        top = 2 + (1.5 - block.height) / 2
+        assert text.get_position()[1] == pytest.approx(
+            top + _baselines(block.tiers[0], theme)[0]
+        )
 
     @pytest.mark.parametrize(
         "update", [{"line_spacing": 1.7}, {"tier_gap": 0.9}, {"tier_gap": 0.0}]
@@ -369,11 +403,31 @@ class TestDrawBox:
             "Two\nlines", theme, 1, subtitle="and\nmore", eyebrow="STEP"
         )
         top = 2 + (1.5 - block.height) / 2
+        assert [t.get_text() for t in texts] == ["STEP", "Two", "lines", "and", "more"]
         assert [t.get_position()[1] for t in texts] == pytest.approx(
-            [top + tier.top for tier in block.tiers]
+            [top + y for tier in block.tiers for y in _baselines(tier, theme)]
         )
-        # Older matplotlib has no getter for the line spacing.
-        assert all(t._linespacing == theme.line_spacing for t in texts)  # type: ignore[attr-defined]
+
+    @pytest.mark.parametrize("line_spacing", [1.0, 1.2, 1.8])
+    def test_lines_of_a_tier_are_one_line_spacing_apart(
+        self, line_spacing: float
+    ) -> None:
+        theme = LIGHT.model_copy(update={"line_spacing": line_spacing})
+        box = Box(label="Ag\nxx\nTy,")
+        texts = draw_box(_axes(), box, self.RECT, theme, 1).texts
+        ys = [t.get_position()[1] for t in texts]
+        # DejaVu Sans's ascent plus descent is exactly one font size.
+        pitch = line_spacing * theme.label_size / POINTS_PER_INCH
+        assert [b - a for a, b in itertools.pairwise(ys)] == pytest.approx(
+            [pitch, pitch]
+        )
+
+    def test_empty_lines_keep_their_space(self) -> None:
+        texts = draw_box(_axes(), Box(label="a\n\nb"), self.RECT, LIGHT, 1).texts
+        assert [t.get_text() for t in texts] == ["a", "b"]
+        top, bottom = (t.get_position()[1] for t in texts)
+        pitch = LIGHT.line_spacing * LIGHT.label_size / POINTS_PER_INCH
+        assert bottom - top == pytest.approx(2 * pitch)
 
     @pytest.mark.parametrize(
         ("align", "x"),
@@ -384,12 +438,10 @@ class TestDrawBox:
         ],
     )
     def test_alignment_sets_anchor_and_inset(self, align: TextAlign, x: float) -> None:
-        box = Box(label="one\ntwo", text_align=align)
-        (text,) = draw_box(_axes(), box, self.RECT, LIGHT, 1).texts
-        assert text.get_position()[0] == pytest.approx(x)
-        assert text.get_horizontalalignment() == align
-        # matplotlib has no getter for the alignment between lines.
-        assert text._multialignment == align  # type: ignore[attr-defined]
+        box = Box(label="one\nlonger two", text_align=align)
+        texts = draw_box(_axes(), box, self.RECT, LIGHT, 1).texts
+        assert [t.get_position()[0] for t in texts] == pytest.approx([x, x])
+        assert [t.get_horizontalalignment() for t in texts] == [align, align]
 
     def test_dollar_signs_are_not_mathtext(self) -> None:
         diagram = Diagram(root=Row(children=[Box(label="$5 to $10")]))
@@ -402,6 +454,23 @@ class TestDrawBox:
 
 
 class TestDrawBoxes:
+    def test_labels_in_a_row_share_a_baseline_whatever_their_letters(self) -> None:
+        diagram = Diagram(
+            root=Row(
+                children=[
+                    Box(label="OXO"),
+                    Box(label="gyp,"),
+                    Box(label="mix", eyebrow="STEP", subtitle="body"),
+                    Box(label="Tall", eyebrow="STEP", subtitle="jog"),
+                ]
+            )
+        )
+        _, _, drawn = _drawn(diagram)
+        plain = [drawn[(i,)].texts[0].get_position()[1] for i in (0, 1)]
+        tiered = [[t.get_position()[1] for t in drawn[(i,)].texts] for i in (2, 3)]
+        assert plain[0] == pytest.approx(plain[1])
+        assert tiered[0] == pytest.approx(tiered[1])
+
     def test_every_box_is_drawn_at_its_path(self) -> None:
         diagram = Diagram(
             root=Row(
@@ -588,14 +657,37 @@ class TestDrawTitle:
         assert band is not None
         result, texts = self._draw(diagram)
         assert [t.get_text() for t in texts] == ["Pipeline", "Training"]
+        first = [
+            baselines(
+                line.text,
+                line.size,
+                line.weight,
+                LIGHT.font_family,
+                1,
+                line_spacing=LIGHT.line_spacing,
+            )[0]
+            for line in band.lines
+        ]
         assert [t.get_position()[1] for t in texts] == pytest.approx(
-            [result.top + 0.5 + line.top for line in band.lines]
+            [
+                result.top + 0.5 + line.top + y
+                for line, y in zip(band.lines, first, strict=True)
+            ]
         )
+        assert all(t.get_verticalalignment() == "baseline" for t in texts)
         assert [t.get_fontsize() for t in texts] == [
             LIGHT.title_size,
             LIGHT.subtitle_size,
         ]
         assert [t.get_fontweight() for t in texts] == ["bold", "normal"]
+
+    def test_title_lines_are_drawn_one_by_one(self) -> None:
+        _, texts = self._draw(_titled("Two\nlines", "and\nmore"))
+        assert [t.get_text() for t in texts] == ["Two", "lines", "and", "more"]
+        ys = [t.get_position()[1] for t in texts]
+        pitch = LIGHT.line_spacing * LIGHT.title_size / POINTS_PER_INCH
+        assert ys[1] - ys[0] == pytest.approx(pitch)
+        assert ys == sorted(ys)
 
     @pytest.mark.parametrize(
         ("align", "x"), [("left", 0.0), ("center", 3.0), ("right", 6.0)]
