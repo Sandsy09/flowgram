@@ -516,6 +516,18 @@ class TestTitleBand:
         band = title_band(_titled(None, "Just a note"))
         assert band is not None
         assert [line.text for line in band.lines] == ["Just a note"]
+        assert [line.kind for line in band.lines] == ["subtitle"]
+
+    def test_subtitle_size_is_measured_apart_from_box_subtitles(self) -> None:
+        default = title_band(_titled("Pipeline", "Training"))
+        larger = title_band(_titled("Pipeline", "Training", title_subtitle_size=16))
+        assert default is not None
+        assert larger is not None
+        assert [line.kind for line in larger.lines] == ["title", "subtitle"]
+        assert larger.lines[1].size == 16
+        assert larger.lines[1].height > default.lines[1].height
+        assert larger.lines[1].width > default.lines[1].width
+        assert larger.lines[1].top == default.lines[1].top
 
     def test_band_follows_scale(self) -> None:
         small = title_band(_titled("Pipeline"))
@@ -600,6 +612,36 @@ class TestDrawTitle:
     def test_title_colour_override(self) -> None:
         (text,) = self._draw(_titled("Pipeline", title_color="#2563EB"))[1]
         assert to_rgba(text.get_color()) == to_rgba("#2563EB")
+
+    def test_subtitle_follows_the_title_colour(self) -> None:
+        diagram = _titled("Pipeline", "Training", title_color="#2563EB")
+        texts = self._draw(diagram)[1]
+        assert [to_rgba(t.get_color()) for t in texts] == [to_rgba("#2563EB")] * 2
+
+    def test_subtitle_follows_the_default_text_without_a_title_colour(self) -> None:
+        (_, subtitle) = self._draw(_titled("Pipeline", "Training"))[1]
+        assert to_rgba(subtitle.get_color()) == to_rgba(LIGHT.roles["default"].text)
+
+    def test_subtitle_colour_override(self) -> None:
+        diagram = _titled(
+            "Pipeline",
+            "Training",
+            title_color="#0F172A",
+            title_subtitle_color="#64748B",
+        )
+        title, subtitle = self._draw(diagram)[1]
+        assert to_rgba(title.get_color()) == to_rgba("#0F172A")
+        assert to_rgba(subtitle.get_color()) == to_rgba("#64748B")
+
+    def test_subtitle_colour_without_a_title(self) -> None:
+        diagram = _titled(None, "Just a note", title_subtitle_color="#64748B")
+        (text,) = self._draw(diagram)[1]
+        assert to_rgba(text.get_color()) == to_rgba("#64748B")
+
+    def test_subtitle_is_drawn_at_its_own_size(self) -> None:
+        diagram = _titled("Pipeline", "Training", title_subtitle_size=14)
+        texts = self._draw(diagram)[1]
+        assert [t.get_fontsize() for t in texts] == [LIGHT.title_size, 14]
 
     @pytest.mark.parametrize("align", ["left", "center", "right"])
     def test_title_stays_in_the_figure_above_the_content(

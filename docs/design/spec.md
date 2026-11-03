@@ -94,6 +94,8 @@ every component.
   typography (sizes in points; `label_weight`, `subtitle_weight` and `eyebrow_weight`
   as `normal` or `bold`, defaulting to bold, normal and bold; `text_align` defaulting
   to `center`; `text_valign` (`top` or `center`) defaulting to `center`;
+  `title_subtitle_size` and `title_subtitle_color` for the diagram subtitle,
+  falling back to `subtitle_size` and the title's colour;
   `line_spacing` (in font sizes, default 1.2) and `tier_gap` (in label sizes,
   default 0.3); the diagram title's `title_weight`, `title_align` and
   `title_color`, defaulting to bold, `left` and the default role's text
