@@ -19,3 +19,7 @@
 ## Render
 
 ::: flowgram.render
+
+## Edges
+
+::: flowgram.edges
