@@ -37,6 +37,7 @@ lint = [
 test = [
     "pytest>=8.3",
     "pytest-cov>=6,<8",
+    "pytest-timeout>=2.3",
 ]
 typecheck = [
     "mypy>=1.14",
@@ -119,6 +120,11 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
+# A hung test fails the run instead of blocking it. The thread method works on
+# Windows too, and on a timeout it prints the stack of every thread, which names
+# the test and the line it is stuck on.
+timeout = 60
+timeout_method = "thread"
 addopts = [
     "-ra",
     "--strict-markers",
