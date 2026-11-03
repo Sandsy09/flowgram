@@ -59,6 +59,9 @@ ARROW_WIDTH = 0.5
 TITLE_GAP = 1.0
 """Space between the title band and the content, in title font sizes."""
 
+FOOTNOTE_GAP = 1.5
+"""Space between the content and the footnote, in footnote font sizes."""
+
 Z_EDGE = 1.0
 """Edges sit under boxes, so a line that crosses a box is hidden by its fill."""
 
@@ -139,20 +142,21 @@ class Frame:
         return self.bottom - self.top
 
 
-TitleKind = Literal["title", "subtitle"]
+TitleKind = Literal["title", "subtitle", "footnote"]
 """Which line of the title band a ``TitleLine`` is."""
 
 
 @dataclass(frozen=True, slots=True)
 class TitleLine:
-    """The diagram title or subtitle, measured in units.
+    """The diagram title, subtitle or footnote, measured in units.
 
     Attributes:
-        kind: ``"title"`` or ``"subtitle"``.
+        kind: ``"title"``, ``"subtitle"`` or ``"footnote"``.
         text: What the line says. It may contain newlines.
         size: Font size in points.
         weight: ``"normal"`` or ``"bold"``.
-        top: Distance from the top of the band to the top of this line.
+        top: Distance from the top of the band to the top of this line,
+            or 0 for a footnote.
         width: Width of the widest line of text.
         height: Height of all its lines of text.
     """
@@ -233,6 +237,39 @@ def title_band(diagram: Diagram) -> TitleBand | None:
     )
 
 
+def footnote_line(diagram: Diagram) -> TitleLine | None:
+    """Measure the diagram's footnote.
+
+    It uses ``theme.footnote_size``, falling back to the diagram subtitle's
+    size, and ``theme.subtitle_weight``.
+
+    Args:
+        diagram: Supplies the footnote, theme and scale.
+
+    Returns:
+        The footnote, or ``None`` when the diagram has none.
+    """
+    if not diagram.footnote:
+        return None
+    theme = diagram.theme
+    size = theme.footnote_size or theme.title_subtitle_size or theme.subtitle_size
+    width, height = text_size(
+        diagram.footnote,
+        size,
+        theme.subtitle_weight,
+        theme.font_family,
+        diagram.scale,
+        line_spacing=theme.line_spacing,
+    )
+    return TitleLine(
+        "footnote", diagram.footnote, size, theme.subtitle_weight, 0.0, width, height
+    )
+
+
+def _footnote_gap(diagram: Diagram, line: TitleLine) -> float:
+    return line.size * FOOTNOTE_GAP / (POINTS_PER_INCH * diagram.scale)
+
+
 def _spread(align: TextAlign, extra: float) -> tuple[float, float]:
     """Split ``extra`` width into space before and after, by alignment."""
     if align == "left":
@@ -243,13 +280,15 @@ def _spread(align: TextAlign, extra: float) -> tuple[float, float]:
 
 
 def frame(diagram: Diagram, layout: Layout) -> Frame:
-    """Return the area to show: the title band, the content and padding.
+    """Return the area to show: title band, content, footnote and padding.
 
     The content keeps its layout coordinates. The title band, when there is
     one, is added above it, so ``top`` moves up by the band's height and
-    ``TITLE_GAP``. A title wider than the content widens the frame. The
-    content then lines up with the title by ``theme.title_align``: it stays
-    on the left, sits in the middle, or moves to the right.
+    ``TITLE_GAP``. The footnote, when there is one, is added below it, so
+    ``bottom`` moves down by its height and ``FOOTNOTE_GAP``. A title or
+    footnote wider than the content widens the frame. The content then lines
+    up with them by ``theme.title_align``: it stays on the left, sits in the
+    middle, or moves to the right.
 
     Args:
         diagram: Supplies the padding, title and theme.
@@ -260,15 +299,17 @@ def frame(diagram: Diagram, layout: Layout) -> Frame:
     """
     pad = diagram.padding
     band = title_band(diagram)
-    if band is None:
-        return Frame(-pad, -pad, layout.width + pad, layout.height + pad)
-    extra = max(band.width - layout.width, 0.0)
+    note = footnote_line(diagram)
+    widths = [text.width for text in (band, note) if text is not None]
+    extra = max([0.0, *(width - layout.width for width in widths)])
     before, after = _spread(diagram.theme.title_align, extra)
+    above = 0.0 if band is None else band.gap + band.height
+    below = 0.0 if note is None else _footnote_gap(diagram, note) + note.height
     return Frame(
         -pad - before,
-        -pad - band.gap - band.height,
+        -pad - above,
         layout.width + after + pad,
-        layout.height + pad,
+        layout.height + pad + below,
     )
 
 
@@ -555,6 +596,16 @@ def draw_boxes(
     }
 
 
+def _title_colors(theme: Theme) -> dict[TitleKind, str]:
+    title = theme.title_color or theme.roles["default"].text
+    subtitle = theme.title_subtitle_color or title
+    return {
+        "title": title,
+        "subtitle": subtitle,
+        "footnote": theme.footnote_color or subtitle,
+    }
+
+
 def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
     """Draw the diagram's title and subtitle at the top of ``frame``.
 
@@ -581,11 +632,7 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
     align = theme.title_align
     inner = Rect(frame.left + pad, frame.top, frame.width - 2 * pad, frame.height)
     x = _text_x(inner, align, 0.0)
-    title_color = theme.title_color or theme.roles["default"].text
-    colors: dict[TitleKind, str] = {
-        "title": title_color,
-        "subtitle": theme.title_subtitle_color or title_color,
-    }
+    colors = _title_colors(theme)
     texts: list[Text] = []
     for line in band.lines:
         texts += _draw_lines(
@@ -601,6 +648,45 @@ def draw_title(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
             scale=diagram.scale,
         )
     return tuple(texts)
+
+
+def draw_footnote(axes: Axes, diagram: Diagram, frame: Frame) -> tuple[Text, ...]:
+    """Draw the diagram's footnote at the bottom of ``frame``.
+
+    The footnote sits one padding in from the bottom and sides of the frame
+    and is aligned across it by ``theme.title_align``, like the title. Its
+    colour is ``theme.footnote_color``, or the diagram subtitle's colour
+    when that is ``None``.
+
+    Args:
+        axes: Axes set up by ``setup_axes`` to show ``frame``.
+        diagram: Supplies the footnote, theme and padding.
+        frame: The frame from ``frame(diagram, layout)``.
+
+    Returns:
+        The text artists added, one per non-empty line. Empty when there is
+        no footnote.
+    """
+    line = footnote_line(diagram)
+    if line is None:
+        return ()
+    theme = diagram.theme
+    pad = diagram.padding
+    inner = Rect(frame.left + pad, frame.top, frame.width - 2 * pad, frame.height)
+    return tuple(
+        _draw_lines(
+            axes,
+            _text_x(inner, theme.title_align, 0.0),
+            frame.bottom - pad - line.height,
+            line.text,
+            size=line.size,
+            weight=line.weight,
+            color=_title_colors(theme)["footnote"],
+            align=theme.title_align,
+            theme=theme,
+            scale=diagram.scale,
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -834,8 +920,8 @@ def draw_edges(axes: Axes, diagram: Diagram, layout: Layout) -> tuple[DrawnEdge,
 def render(diagram: Diagram) -> Figure:
     """Lay out and draw a diagram into a new figure.
 
-    Boxes, edges and the title are drawn. The figure is sized to the
-    content, the title band and the padding, at
+    Boxes, edges, the title and the footnote are drawn. The figure is sized
+    to the content, the title band, the footnote and the padding, at
     ``scale`` inches per unit, and drawn with ``rc_params(theme)``. It is
     built without pyplot, so it is not shown or tracked by pyplot. Display
     it in Jupyter as the cell's result, or save it with ``savefig``.
@@ -853,6 +939,7 @@ def render(diagram: Diagram) -> Figure:
         draw_boxes(axes, diagram, result)
         draw_edges(axes, diagram, result)
         draw_title(axes, diagram, view)
+        draw_footnote(axes, diagram, view)
     return figure
 
 
@@ -875,5 +962,6 @@ def draw(diagram: Diagram, axes: Axes) -> None:
         draw_boxes(axes, diagram, result)
         draw_edges(axes, diagram, result)
         draw_title(axes, diagram, view)
+        draw_footnote(axes, diagram, view)
     setup_axes(axes, view)
     axes.set_aspect("equal")

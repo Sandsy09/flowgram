@@ -100,6 +100,10 @@ class Theme(Spec):
             for ``subtitle_size``, the box subtitle size.
         title_subtitle_color: Diagram subtitle colour, or ``None`` for the
             title's colour.
+        footnote_size: Diagram footnote size in points, or ``None`` for the
+            diagram subtitle's size.
+        footnote_color: Diagram footnote colour, or ``None`` for the
+            diagram subtitle's colour.
         line_width: Default box outline width in points.
         corner_radius: Default box corner radius in units.
         gap: Default space between children of a Row or Column, in units.
@@ -133,6 +137,8 @@ class Theme(Spec):
     title_color: Colour | None = None
     title_subtitle_size: Positive | None = None
     title_subtitle_color: Colour | None = None
+    footnote_size: Positive | None = None
+    footnote_color: Colour | None = None
 
     line_width: Positive = 1.5
     corner_radius: NonNegative = 0.15

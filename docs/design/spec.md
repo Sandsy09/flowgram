@@ -87,6 +87,7 @@ every component.
 ## Components
 
 - **Diagram:** `root` (Row or Column), `edges`, `theme`, `title`, `subtitle`,
+  `footnote` (a note under the content, aligned like the title),
   `scale` (inches per unit, default 1.0), `padding` (units, default 0.5).
 - **Theme:** `roles` (role name to fill, stroke and text colours, plus optional
   eyebrow and subtitle colours that fall back to the text colour; must include
@@ -95,7 +96,8 @@ every component.
   as `normal` or `bold`, defaulting to bold, normal and bold; `text_align` defaulting
   to `center`; `text_valign` (`top` or `center`) defaulting to `center`;
   `title_subtitle_size` and `title_subtitle_color` for the diagram subtitle,
-  falling back to `subtitle_size` and the title's colour;
+  falling back to `subtitle_size` and the title's colour; `footnote_size` and
+  `footnote_color` for the footnote, falling back to the diagram subtitle's;
   `line_spacing` (in font sizes, default 1.2) and `tier_gap` (in label sizes,
   default 0.3); the diagram title's `title_weight`, `title_align` and
   `title_color`, defaulting to bold, `left` and the default role's text

@@ -34,6 +34,7 @@ from flowgram.render import (
     ARROW_WIDTH,
     EDGE_LABEL_PAD,
     FIGURE_DPI,
+    FOOTNOTE_GAP,
     SVG_HASH_SALT,
     TITLE_GAP,
     Z_BOX,
@@ -48,8 +49,10 @@ from flowgram.render import (
     draw_boxes,
     draw_edge,
     draw_edges,
+    draw_footnote,
     draw_title,
     edge_look,
+    footnote_line,
     frame,
     new_figure,
     rc_params,
@@ -755,6 +758,193 @@ class TestDrawTitle:
             assert box.y0 >= content_top
 
 
+WIDE_NOTE = (
+    "A footnote that runs well past both edges of the content, which is only six "
+    "units wide, by a long way"
+)
+
+
+def _noted(footnote: str | None, title: str | None = None, **theme: object) -> Diagram:
+    return _two_boxes(
+        title=title,
+        footnote=footnote,
+        padding=0.5,
+        theme=LIGHT.model_copy(update=theme),
+    )
+
+
+def _footnote_size(text: str, size: float = LIGHT.subtitle_size) -> tuple[float, float]:
+    return text_size(
+        text,
+        size,
+        LIGHT.subtitle_weight,
+        LIGHT.font_family,
+        1,
+        line_spacing=LIGHT.line_spacing,
+    )
+
+
+class TestFootnoteLine:
+    @pytest.mark.parametrize("footnote", [None, ""])
+    def test_no_footnote_means_no_line(self, footnote: str | None) -> None:
+        assert footnote_line(_noted(footnote)) is None
+
+    def test_footnote_is_measured_at_the_subtitle_size(self) -> None:
+        line = footnote_line(_noted("Source: survey"))
+        assert line is not None
+        assert (line.kind, line.text, line.top) == ("footnote", "Source: survey", 0)
+        assert (line.size, line.weight) == (LIGHT.subtitle_size, LIGHT.subtitle_weight)
+        assert (line.width, line.height) == pytest.approx(
+            _footnote_size("Source: survey")
+        )
+
+    def test_footnote_follows_the_diagram_subtitle_size(self) -> None:
+        line = footnote_line(_noted("Source", title_subtitle_size=13))
+        assert line is not None
+        assert line.size == 13
+
+    def test_footnote_size_wins(self) -> None:
+        line = footnote_line(_noted("Source", title_subtitle_size=13, footnote_size=8))
+        assert line is not None
+        assert line.size == 8
+        assert line.height == pytest.approx(_footnote_size("Source", 8)[1])
+
+
+class TestFootnoteFrame:
+    def test_no_footnote_leaves_the_frame_alone(self) -> None:
+        diagram = _noted(None)
+        result = frame(diagram, layout(diagram))
+        assert (result.left, result.top, result.right, result.bottom) == (
+            -0.5,
+            -0.5,
+            6.5,
+            1.5,
+        )
+
+    def test_footnote_is_reserved_below_the_content(self) -> None:
+        diagram = _noted("Source: survey")
+        line = footnote_line(diagram)
+        assert line is not None
+        result = frame(diagram, layout(diagram))
+        gap = LIGHT.subtitle_size * FOOTNOTE_GAP / POINTS_PER_INCH
+        assert result.bottom == pytest.approx(1.5 + gap + line.height)
+        assert (result.left, result.top, result.right) == (-0.5, -0.5, 6.5)
+
+    def test_title_and_footnote_both_grow_the_frame(self) -> None:
+        diagram = _noted("Source", "Pipeline")
+        band = title_band(diagram)
+        line = footnote_line(diagram)
+        assert band is not None
+        assert line is not None
+        result = frame(diagram, layout(diagram))
+        assert result.top == pytest.approx(-0.5 - band.gap - band.height)
+        gap = LIGHT.subtitle_size * FOOTNOTE_GAP / POINTS_PER_INCH
+        assert result.bottom == pytest.approx(1.5 + gap + line.height)
+
+    @pytest.mark.parametrize(
+        ("align", "left_extra"), [("left", 0.0), ("center", 0.5), ("right", 1.0)]
+    )
+    def test_wide_footnote_widens_the_frame(
+        self, align: TextAlign, left_extra: float
+    ) -> None:
+        note = WIDE_NOTE
+        diagram = _noted(note, title_align=align)
+        result = frame(diagram, layout(diagram))
+        extra = _footnote_size(note)[0] - 6
+        assert extra > 0
+        assert result.left == pytest.approx(-0.5 - left_extra * extra)
+        assert result.right == pytest.approx(6.5 + (1 - left_extra) * extra)
+
+    def test_the_wider_of_title_and_footnote_sets_the_width(self) -> None:
+        note = WIDE_NOTE
+        title = "A title that is much wider than the six units of content"
+        diagram = _noted(note, title)
+        result = frame(diagram, layout(diagram))
+        assert 6 < _title_size(title)[0] < _footnote_size(note)[0]
+        assert result.width == pytest.approx(_footnote_size(note)[0] + 1)
+
+
+class TestDrawFootnote:
+    def _draw(self, diagram: Diagram) -> tuple[Frame, tuple[Text, ...]]:
+        result = frame(diagram, layout(diagram))
+        _, axes = new_figure(diagram, result)
+        return result, draw_footnote(axes, diagram, result)
+
+    def test_nothing_is_drawn_without_a_footnote(self) -> None:
+        assert self._draw(_noted(None))[1] == ()
+
+    def test_footnote_sits_one_padding_above_the_bottom(self) -> None:
+        diagram = _noted("Source: survey")
+        line = footnote_line(diagram)
+        assert line is not None
+        result, (text,) = self._draw(diagram)
+        (baseline,) = baselines(
+            line.text,
+            line.size,
+            line.weight,
+            LIGHT.font_family,
+            1,
+            line_spacing=LIGHT.line_spacing,
+        )
+        assert text.get_text() == "Source: survey"
+        assert text.get_position()[1] == pytest.approx(
+            result.bottom - 0.5 - line.height + baseline
+        )
+        assert text.get_fontsize() == LIGHT.subtitle_size
+        assert text.get_fontweight() == LIGHT.subtitle_weight
+        assert text.get_zorder() == Z_BOX_TEXT
+
+    def test_footnote_lines_are_drawn_one_by_one(self) -> None:
+        texts = self._draw(_noted("Source: survey\nData from 2025"))[1]
+        assert [t.get_text() for t in texts] == ["Source: survey", "Data from 2025"]
+
+    @pytest.mark.parametrize(
+        ("align", "x"), [("left", 0.0), ("center", 3.0), ("right", 6.0)]
+    )
+    def test_alignment_follows_the_title(self, align: TextAlign, x: float) -> None:
+        (text,) = self._draw(_noted("Source", title_align=align))[1]
+        assert text.get_position()[0] == pytest.approx(x)
+        assert text.get_horizontalalignment() == align
+
+    def test_default_colour_is_the_default_role_text(self) -> None:
+        (text,) = self._draw(_noted("Source"))[1]
+        assert to_rgba(text.get_color()) == to_rgba(LIGHT.roles["default"].text)
+
+    def test_colour_follows_the_diagram_subtitle(self) -> None:
+        diagram = _noted(
+            "Source", title_color="#0F172A", title_subtitle_color="#64748B"
+        )
+        (text,) = self._draw(diagram)[1]
+        assert to_rgba(text.get_color()) == to_rgba("#64748B")
+
+    def test_colour_follows_the_title_without_a_subtitle_colour(self) -> None:
+        (text,) = self._draw(_noted("Source", title_color="#2563EB"))[1]
+        assert to_rgba(text.get_color()) == to_rgba("#2563EB")
+
+    def test_footnote_colour_wins(self) -> None:
+        diagram = _noted(
+            "Source", title_subtitle_color="#64748B", footnote_color="#94A3B8"
+        )
+        (text,) = self._draw(diagram)[1]
+        assert to_rgba(text.get_color()) == to_rgba("#94A3B8")
+
+    @pytest.mark.parametrize("align", ["left", "center", "right"])
+    def test_footnote_stays_in_the_figure_below_the_content(
+        self, align: TextAlign
+    ) -> None:
+        note = WIDE_NOTE
+        diagram = _noted(note, title_align=align)
+        result = frame(diagram, layout(diagram))
+        figure, axes = new_figure(diagram, result)
+        (text,) = draw_footnote(axes, diagram, result)
+        content_bottom = axes.transData.transform((0, 1))[1]
+        box = _extent(figure, text)
+        assert box.x0 >= -0.5
+        assert box.x1 <= figure.bbox.width + 0.5
+        assert box.y0 >= -0.5
+        assert box.y1 <= content_bottom
+
+
 def _one_row() -> Diagram:
     return Diagram(
         title="Model training pipeline",
@@ -791,6 +981,11 @@ class TestRender:
             "Model training pipeline",
             "Three steps, three roles",
         ]
+
+    def test_draws_the_footnote_last(self) -> None:
+        diagram = _one_row().model_copy(update={"footnote": "Source: survey"})
+        (axes,) = diagram.render().axes
+        assert axes.texts[-1].get_text() == "Source: survey"
 
     def test_method_and_function_agree(self) -> None:
         diagram = _one_row()

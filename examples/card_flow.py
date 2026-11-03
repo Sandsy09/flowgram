@@ -8,9 +8,9 @@ formatting at 88 columns spreads it further. Run this file to write
 
 Body text is muted under a dark title with a role ``subtitle`` colour, and
 the tall cards keep their text at the top with looser line spacing. The
-diagram subtitle is larger and muted, apart from the card bodies. Not covered
-yet, and tracked as issues: a footnote (#68), group panels with badges,
-headings and captions (#32), and shadows (#69).
+diagram subtitle is larger and muted, apart from the card bodies, and a
+muted footnote sits under the cards. Not covered yet, and tracked as issues:
+group panels with badges, headings and captions (#32), and shadows (#69).
 """
 
 from pathlib import Path
@@ -24,6 +24,7 @@ theme = Theme.light().model_copy(
         "title_size": 22,
         "title_subtitle_size": 12.5,
         "title_subtitle_color": MUTED,
+        "footnote_size": 10,
         "label_size": 14,
         "eyebrow_size": 8.5,
         "text_align": "left",
@@ -65,6 +66,7 @@ def action(box_id: str, label: str, body: str) -> Box:
 spec = Diagram(
     title="Two models, one maintenance plan",
     subtitle="Score each machine, then judge each repair before it is scheduled",
+    footnote="Risk is re-scored after every completed repair",
     theme=theme,
     root=Column(
         gap=1.2,
