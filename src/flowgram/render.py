@@ -807,6 +807,7 @@ class DrawnEdge:
 
 
 Segment = tuple[Point, Point]
+"""One straight piece of an edge, from its first point to its second, in units."""
 
 
 def _pull_back(segment: Segment, distance: float) -> Point:

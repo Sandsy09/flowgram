@@ -1,5 +1,5 @@
-site_name: "FlowGram"
-site_description: "Reusable components, modular diagram builder"
+site_name: "flowgram"
+site_description: "Presentation-quality diagrams from a short Python spec"
 repo_url: https://github.com/Sandsy09/flowgram
 repo_name: Sandsy09/flowgram
 edit_uri: edit/main/docs/
@@ -36,6 +36,15 @@ plugins:
 
 nav:
   - Home: index.md
+  - User guide:
+      - Concepts: guide/concepts.md
+      - Layout: guide/layout.md
+      - Edges: guide/edges.md
+      - Themes: guide/themes.md
+      - Export: guide/export.md
+      - Loading specs: guide/loading.md
+      - Jupyter and PowerPoint: guide/jupyter-and-powerpoint.md
+      - Known limits: guide/limits.md
   - Gallery: gallery/index.md
   - Design:
       - MVP spec: design/spec.md
