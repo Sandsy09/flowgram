@@ -4,6 +4,9 @@ The file type comes from the path's extension. Saving renders the diagram
 afresh and writes it with the same ``rc_params`` as rendering, so the user's
 own matplotlib settings cannot change the file.
 
+SVG text is kept as text, and each text element names the theme's font then
+its ``font_fallbacks``, so a viewer without the font picks a close one.
+
 Output is deterministic: saving the same diagram twice gives the same bytes,
 in any process. SVG ids use a fixed salt, and ``EXPORT_METADATA`` leaves out
 the dates and the matplotlib version that files would otherwise carry. The
@@ -13,6 +16,7 @@ bytes can still change between matplotlib or FreeType versions.
 import io
 import math
 import os
+import re
 from pathlib import Path
 from typing import IO, Any, Literal, get_args
 
@@ -21,6 +25,7 @@ from matplotlib.figure import Figure
 
 from flowgram.diagram import Diagram
 from flowgram.render import FIGURE_DPI, rc_params, render
+from flowgram.theme import GENERIC_FONT_FAMILIES, Theme
 
 ExportFormat = Literal["png", "svg", "pdf"]
 """A file type that ``save`` can write."""
@@ -61,6 +66,58 @@ EXPORT_METADATA: dict[ExportFormat, dict[str, Any]] = {
 """Metadata written into each file type. ``None`` leaves a key out."""
 
 
+_SVG_TEXT_STYLE = re.compile(r'(<text\b[^>]*?\bstyle=")([^"]*)(")')
+"""The style attribute of a ``<text>`` element. Text content cannot match,
+because the SVG escapes ``<`` there."""
+_FONT_FAMILY = re.compile(r"(font-family: )[^;]*")
+"""The font list as recent matplotlib writes it."""
+_FONT_SHORTHAND = re.compile(r"(\bfont: [^;]*?px )[^;]*")
+"""The font list at the end of the ``font`` shorthand that older matplotlib,
+such as 3.8, writes instead: ``font: 700 11px 'DejaVu Sans'``."""
+
+
+def css_font_family(theme: Theme) -> str:
+    """Return the CSS ``font-family`` list an SVG names for a theme's text.
+
+    It is ``theme.font_family`` then ``theme.font_fallbacks``, without
+    repeats. Specific names are quoted and generic families are not.
+
+    Args:
+        theme: Supplies the font and its fallbacks.
+
+    Returns:
+        A value such as ``'DejaVu Sans', 'Verdana', sans-serif``.
+    """
+    names = dict.fromkeys([theme.font_family, *theme.font_fallbacks])
+    return ", ".join(
+        name if name in GENERIC_FONT_FAMILIES else f"'{name}'" for name in names
+    )
+
+
+def add_font_fallbacks(svg: str, theme: Theme) -> str:
+    """Return an SVG with each text element's font list set from the theme.
+
+    matplotlib names only the font it drew with. Viewers that lack that font
+    then substitute their own default, so this names the fallbacks too.
+
+    Args:
+        svg: An SVG written by matplotlib with ``svg.fonttype`` ``"none"``.
+        theme: Supplies the font and its fallbacks.
+
+    Returns:
+        The SVG with every ``font-family`` replaced.
+    """
+    family = css_font_family(theme)
+
+    def restyle(match: re.Match[str]) -> str:
+        style = match[2]
+        for pattern in (_FONT_FAMILY, _FONT_SHORTHAND):
+            style = pattern.sub(lambda found: found[1] + family, style)
+        return match[1] + style + match[3]
+
+    return _SVG_TEXT_STYLE.sub(restyle, svg)
+
+
 def export_format(path: str | os.PathLike[str]) -> ExportFormat:
     """Return the file type to write for ``path``, from its extension.
 
@@ -98,6 +155,7 @@ def write_figure(
     """Write a rendered diagram's figure to a file or binary stream.
 
     The file's metadata is ``EXPORT_METADATA[fmt]``, so it holds no date.
+    SVG text names the theme's font and then its fallbacks.
 
     Args:
         figure: The figure from ``render(diagram)``.
@@ -117,14 +175,22 @@ def write_figure(
     settings = rc_params(diagram.theme)
     if embed_fonts:
         settings["svg.fonttype"] = "path"
+    buffer = io.BytesIO()
     with rc_context(settings):
         figure.savefig(
-            target,
+            buffer,
             format=fmt,
             dpi=dpi,
             transparent=transparent,
             metadata=EXPORT_METADATA[fmt],
         )
+    data = buffer.getvalue()
+    if fmt == "svg" and not embed_fonts:
+        data = add_font_fallbacks(data.decode("utf-8"), diagram.theme).encode("utf-8")
+    if isinstance(target, str | os.PathLike):
+        Path(target).write_bytes(data)
+    else:
+        target.write(data)
 
 
 def save(
@@ -142,9 +208,10 @@ def save(
     with nothing cropped.
 
     SVG text is kept as text, so it stays editable in a vector editor or
-    slide software. The file names the theme's font, so a machine without
-    that font shows a substitute whose widths can differ and push text past
-    its box. ``embed_fonts=True`` turns the text into paths instead: it looks
+    slide software. The file names the theme's font, then its
+    ``font_fallbacks``. A machine without the font uses the first fallback
+    it has; the default, Verdana, is within about 2% of DejaVu Sans's
+    width. ``embed_fonts=True`` turns the text into paths instead: it looks
     the same everywhere but can no longer be edited as text. PDF always
     embeds its fonts, and PNG is pixels, so the option only affects SVG.
 

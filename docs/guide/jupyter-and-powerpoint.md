@@ -36,10 +36,10 @@ Save a file and insert it with **Insert > Pictures**:
   16:9 slide, even on a 4K screen. Use `dpi=600` if the slide will be printed
   large.
 - **SVG** stays sharp at any size. Recent versions of PowerPoint can insert SVG
-  and convert it to editable shapes. SVG text names the theme's font, so on a
-  machine without DejaVu Sans PowerPoint substitutes another font, which can be
-  wider than the box. Save with `embed_fonts=True` to draw the text as shapes
-  instead, at the cost of editable text.
+  and convert it to editable shapes. SVG text names DejaVu Sans, then Verdana,
+  which is on Windows and macOS and is within about 2% of its width, so text
+  set in Verdana still fits its boxes. Save with `embed_fonts=True` to draw the text as shapes
+  instead, so it looks exactly the same everywhere, at the cost of editable text.
 - **PDF** keeps its fonts but is harder to place on a slide than an image.
 
 ```python
@@ -61,9 +61,16 @@ stretching the picture afterwards:
 ```python
 def fit_width(spec: Diagram, inches: float) -> Diagram:
     """Return the spec with its scale set so the figure is about ``inches`` wide."""
-    for _ in range(2):  # text does not scale, so a second pass gets closer
-        width, _ = spec.render().get_size_inches()
-        spec = spec.model_copy(update={"scale": spec.scale * inches / width})
+    # Width is spacing, which grows with scale, plus text, which does not.
+    # Two renders find both parts, then one step lands on the target.
+    first = spec.scale
+    width_1 = spec.render().get_size_inches()[0]
+    second = first * inches / width_1
+    spec = spec.model_copy(update={"scale": second})
+    width_2 = spec.render().get_size_inches()[0]
+    if width_2 != width_1:
+        slope = (width_2 - width_1) / (second - first)
+        spec = spec.model_copy(update={"scale": second + (inches - width_2) / slope})
     return spec
 
 

@@ -164,6 +164,7 @@ docs = "mkdocs serve"
 notebook = "jupyter lab"
 "notebook:check" = "python scripts/check_notebooks.py"
 gallery = "python scripts/build_gallery.py"
+"powerpoint:pack" = "python scripts/powerpoint_pack.py"
 "typecheck:pyright" = "pyright"
 "test:snapshots" = "pytest -m snapshot"
 "snapshots:update" = { cmd = "pytest -m snapshot", env = { FLOWGRAM_UPDATE_SNAPSHOTS = "1" } }

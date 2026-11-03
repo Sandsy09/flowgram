@@ -15,6 +15,8 @@ from flowgram.export import (
     DEFAULT_DPI,
     DISPLAY_DPI,
     EXPORT_FORMATS,
+    add_font_fallbacks,
+    css_font_family,
     export_format,
 )
 from flowgram.render import FIGURE_DPI
@@ -237,6 +239,78 @@ class TestDeterminism:
         path = tmp_path / "out.png"
         _one_box().save(path)
         assert b"tEXtSoftware\x00flowgram" in path.read_bytes()
+
+
+def _font_families(svg: str) -> list[str]:
+    root = ElementTree.fromstring(svg)
+    families = []
+    for text in root.iter(f"{SVG}text"):
+        style = dict(part.split(": ", 1) for part in str(text.get("style")).split("; "))
+        if "font" in style:  # the shorthand older matplotlib writes
+            families.append(style["font"].split("px ", 1)[1])
+        else:
+            families.append(style["font-family"])
+    return families
+
+
+class TestFontFallbacks:
+    def test_svg_text_names_the_font_then_its_fallbacks(self) -> None:
+        families = _font_families(spec_pipeline().to_svg())
+        assert len(families) > 5
+        assert set(families) == {"'DejaVu Sans', 'Verdana', sans-serif"}
+
+    def test_saved_file_has_them_too(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.svg"
+        _one_box().save(path)
+        assert path.read_text(encoding="utf-8") == _one_box().to_svg()
+        assert _font_families(_one_box().to_svg()) == [
+            "'DejaVu Sans', 'Verdana', sans-serif"
+        ]
+
+    def test_follow_the_theme(self) -> None:
+        theme = Theme.light().model_copy(
+            update={"font_family": "DejaVu Serif", "font_fallbacks": ("serif",)}
+        )
+        assert _font_families(_one_box(theme=theme).to_svg()) == [
+            "'DejaVu Serif', serif"
+        ]
+
+    def test_none_leaves_only_the_font(self) -> None:
+        theme = Theme.light().model_copy(update={"font_fallbacks": ()})
+        assert css_font_family(theme) == "'DejaVu Sans'"
+
+    def test_repeats_are_dropped(self) -> None:
+        theme = Theme.light().model_copy(
+            update={"font_fallbacks": ("Verdana", "DejaVu Sans", "Verdana")}
+        )
+        assert css_font_family(theme) == "'DejaVu Sans', 'Verdana'"
+
+    def test_label_text_is_left_alone(self) -> None:
+        label = 'font-family: x; <text style="y">'
+        root = Row(children=[Box(label=label)])
+        (text,) = ElementTree.fromstring(Diagram(root=root).to_svg()).iter(f"{SVG}text")
+        assert text.text == label
+
+    def test_only_text_styles_change(self) -> None:
+        svg = '<g style="font-family: A"><text x="1" style="font-family: B">t</text>'
+        assert add_font_fallbacks(svg, Theme.light()) == (
+            '<g style="font-family: A"><text x="1" '
+            "style=\"font-family: 'DejaVu Sans', 'Verdana', sans-serif\">t</text>"
+        )
+
+    def test_font_shorthand_keeps_weight_and_size(self) -> None:
+        svg = """<text style="fill: #000; font: 700 11px 'DejaVu Sans'">t</text>"""
+        assert add_font_fallbacks(svg, Theme.light()) == (
+            '<text style="fill: #000; '
+            "font: 700 11px 'DejaVu Sans', 'Verdana', sans-serif\">t</text>"
+        )
+
+    def test_embedded_fonts_have_no_text_to_change(self) -> None:
+        assert "font-family" not in _one_box().to_svg(embed_fonts=True)
+
+    def test_png_and_pdf_are_unchanged_by_fallbacks(self) -> None:
+        theme = Theme.light().model_copy(update={"font_fallbacks": ()})
+        assert _one_box(theme=theme).to_png(dpi=20) == _one_box().to_png(dpi=20)
 
 
 class TestToBytes:

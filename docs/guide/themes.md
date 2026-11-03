@@ -47,7 +47,8 @@ spec = Diagram(theme=theme, root=Row(children=[Box(label="Check", role="warning"
 The theme's fields fall into these groups. The [API reference](../reference.md#theme)
 describes each one.
 
-- **Type:** `font_family`, the sizes and weights of the title, label, subtitle,
+- **Type:** `font_family` and the `font_fallbacks` an SVG names after it, the
+  sizes and weights of the title, label, subtitle,
   eyebrow, edge labels and footnote, plus `line_spacing` and `tier_gap`.
 - **Text placement:** `text_align` (`"left"`, `"center"` or `"right"`),
   `text_valign` (`"center"` or `"top"`) and `title_align`.

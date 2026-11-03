@@ -49,7 +49,7 @@ def test_export_page_writes_every_format(
 def test_fit_width_comes_close(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     namespace = _run_page("guide/jupyter-and-powerpoint.md")
-    assert namespace["width"] == pytest.approx(12, rel=0.02)
+    assert namespace["width"] == pytest.approx(12, rel=0.005)
 
 
 def test_every_guide_page_is_in_the_nav() -> None:

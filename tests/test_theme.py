@@ -243,3 +243,24 @@ def test_role_subtitle_colour_is_optional() -> None:
 def test_role_with_bad_subtitle_colour_is_rejected() -> None:
     with pytest.raises(ValidationError, match="subtitle"):
         RoleStyle(fill="#FFFFFF", stroke="#000000", text="#111111", subtitle="nope")
+
+
+class TestFontNames:
+    def test_default_fallbacks_end_in_a_generic_family(self) -> None:
+        assert Theme.light().font_fallbacks == ("Verdana", "sans-serif")
+
+    def test_fallbacks_are_stored_as_a_tuple(self) -> None:
+        assert _theme(font_fallbacks=["Arial"]).font_fallbacks == ("Arial",)
+
+    @pytest.mark.parametrize(
+        "name", ["", "  ", "A'B", 'A"B', "A;B", "<A>", "A&B", "A\\B"]
+    )
+    @pytest.mark.parametrize("field", ["font_family", "font_fallbacks"])
+    def test_unsafe_names_are_rejected(self, field: str, name: str) -> None:
+        value = name if field == "font_family" else [name]
+        with pytest.raises(ValidationError, match="not a usable font name"):
+            _theme(**{field: value})
+
+    def test_names_with_spaces_and_digits_are_fine(self) -> None:
+        theme = _theme(font_family="Source Sans 3", font_fallbacks=["Noto Sans"])
+        assert theme.font_family == "Source Sans 3"

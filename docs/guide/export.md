@@ -29,9 +29,24 @@ and the title and footnote. Its size in inches is the layout's size in units
 times `Diagram.scale`.
 
 SVG text is kept as text by default, so you can edit it in a vector editor or
-slide software. The file names the theme's font, DejaVu Sans by default. A
-machine without that font shows a substitute, which can be wider and push text
-past its box. PDF always embeds its fonts, so it looks the same everywhere.
+slide software. The file names the theme's font and then its
+`font_fallbacks`: `'DejaVu Sans', 'Verdana', sans-serif` by default. A viewer
+without DejaVu Sans uses the first font in the list it has. Verdana comes with
+Windows and macOS and sets text within about 2% of DejaVu Sans's width, so
+labels still fit their boxes. Browsers follow the list; whether PowerPoint does
+is being checked ([#85](https://github.com/Sandsy09/flowgram/issues/85)).
+PDF always embeds its fonts, so it looks the same everywhere.
+
+| Font | Width of the same text, against DejaVu Sans |
+| --- | --- |
+| Verdana | 98.5% to 100.7% |
+| Arial | 83% to 92% |
+| Segoe UI | 80% to 90% |
+| Calibri | 72% to 82% |
+
+Every common font other than Verdana is narrower, so a substitute leaves more
+room inside the boxes rather than spilling out of them. With your own
+`font_family`, set `font_fallbacks` to fonts close to it.
 
 ## Identical files
 
