@@ -33,8 +33,10 @@ slide software. The file names the theme's font and then its
 `font_fallbacks`: `'DejaVu Sans', 'Verdana', sans-serif` by default. A viewer
 without DejaVu Sans uses the first font in the list it has. Verdana comes with
 Windows and macOS and sets text within about 2% of DejaVu Sans's width, so
-labels still fit their boxes. Browsers follow the list; whether PowerPoint does
-is being checked ([#85](https://github.com/Sandsy09/flowgram/issues/85)).
+labels still fit their boxes. Browsers and PowerPoint for the web follow the
+list. Whether text stays editable after PowerPoint's **Convert to Shape**, which
+only the desktop app has, is still to be checked
+([#98](https://github.com/Sandsy09/flowgram/issues/98)).
 PDF always embeds its fonts, so it looks the same everywhere.
 
 | Font | Width of the same text, against DejaVu Sans |

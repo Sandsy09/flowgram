@@ -44,7 +44,10 @@ Insert > Pictures and note:
 4. PNG: inserted at its own size, is it {width:g} inches wide? Is it sharp in
    Slide Show on the presenting screen?
 
-Record the answers on issue #85.
+PowerPoint for the web covers every step except "Convert to Shape", which only
+the desktop app has.
+
+Record the answers on issue #98.
 """
 
 

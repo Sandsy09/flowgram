@@ -47,9 +47,12 @@ spec.save("slide.png", transparent=True)  # sits on a coloured slide background
 spec.save("slide.svg", embed_fonts=True)
 ```
 
-How SVG behaves in PowerPoint is still being checked by hand
-([#85](https://github.com/Sandsy09/flowgram/issues/85)). Until then, PNG is the
-safe choice.
+PNG, PDF and both kinds of SVG have been checked in PowerPoint for the web, on a
+machine without DejaVu Sans. All insert as expected, and text in the default SVG falls back to the listed fonts and stays
+inside its boxes. Whether that text stays editable after **Convert to Shape**,
+which only desktop PowerPoint has, is still to be checked
+([#98](https://github.com/Sandsy09/flowgram/issues/98)). If you need editable
+text in a slide, check it on your own machine first.
 
 ## Sizing for a 16:9 slide
 
