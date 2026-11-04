@@ -53,7 +53,7 @@ also = Diagram.from_dict(
 
 | Loader | Reads |
 | --- | --- |
-| `from_dict(data)` | Nested dicts and lists, as `model_dump()` gives |
+| `from_dict(data)` | Nested dicts and lists, as `to_dict()` gives |
 | `from_json(text)`, `from_json_file(path)` | A JSON document |
 | `from_yaml(text)`, `from_yaml_file(path)` | A YAML document |
 
@@ -67,12 +67,39 @@ YAML needs PyYAML, from the `yaml` extra:
 pip install "flowgram[yaml]"
 ```
 
-PyYAML is only imported when you load YAML. Without it, the error names the
-command above. Files are read with PyYAML's safe loader, so a spec file cannot
-run code.
+PyYAML is only imported when you read or write YAML. Without it, the error names
+the command above. Files are read with PyYAML's safe loader, so a spec file
+cannot run code.
 
 ## Writing specs out
 
-`spec.model_dump_json()` writes a spec as JSON that loads back unchanged, but it
-includes every default, theme and all. A way to write only what differs from the
-defaults is planned ([#91](https://github.com/Sandsy09/flowgram/issues/91)).
+Each loader has a matching writer. It writes only what differs from the
+defaults, so a spec built in Python can be saved as a short, readable file, and
+it loads back equal:
+
+```python
+text = spec.to_yaml()
+assert Diagram.from_yaml(text) == spec
+
+spec.to_json_file("pipeline.json")
+spec.to_yaml_file("pipeline.yaml")
+data = spec.to_dict()
+```
+
+| Writer | Writes |
+| --- | --- |
+| `to_dict()` | Nested dicts and lists of JSON types |
+| `to_json(indent=2)`, `to_json_file(path)` | A JSON document; `indent=None` gives one line |
+| `to_yaml()`, `to_yaml_file(path)` | A YAML document; needs the `yaml` extra |
+
+- Every component keeps its `kind`, even though it is a default, because loading
+  needs it.
+- The theme is left out when it is the default light theme. A changed theme
+  keeps its name and roles, so the file loads without the Python code that made
+  it, plus the fields you changed.
+- YAML keeps the order of the fields, with `kind` first, and writes text with
+  line breaks as a `|` block.
+- Files are written as UTF-8 and end with a newline.
+
+`spec.model_dump_json()` still works and writes every field, defaults included.
+`model_dump(exclude_defaults=True)` keeps `kind` too, so its output also loads.
