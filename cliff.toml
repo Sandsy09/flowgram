@@ -21,7 +21,7 @@ body = """
 {% for commit in commits %}
 - {{ commit.message | upper_first }}\
 {% endfor %}
-{% endfor %}\n
+{% endfor %}
 """
 trim = true
 
