@@ -100,6 +100,37 @@ class TestLoading:
         with pytest.raises(ValidationError, match="kind"):
             Diagram.from_dict({"root": {"children": [{"label": "A"}]}})
 
+    def test_missing_root_kind_lists_the_choices(self) -> None:
+        with pytest.raises(ValidationError) as caught:
+            Diagram.from_dict({"root": {"children": [{"kind": "box", "label": "A"}]}})
+        message = str(caught.value)
+        assert "1 validation error" in message
+        assert "'kind' is missing or not one of: 'row', 'column'" in message
+        assert "discriminator" not in message
+
+    def test_missing_child_kind_lists_the_choices(self) -> None:
+        with pytest.raises(ValidationError) as caught:
+            Diagram.from_dict(
+                {"root": {"kind": "row", "children": [{"label": "A"}, {"kind": "box"}]}}
+            )
+        message = str(caught.value)
+        assert "2 validation errors" in message
+        assert "root.row.children.0\n" in message
+        assert "not one of: 'box', 'spacer', 'row', 'column'" in message
+        assert "root.row.children.1.box.label\n" in message
+
+    def test_unknown_kind_lists_the_choices(self) -> None:
+        with pytest.raises(ValidationError) as caught:
+            Diagram.from_dict({"root": {"kind": "grid", "children": []}})
+        message = str(caught.value)
+        assert "1 validation error" in message
+        assert "'kind' is missing or not one of: 'row', 'column'" in message
+
+    def test_built_components_need_no_tag(self) -> None:
+        root = Row(children=[Box(label="A"), Column(children=[Spacer(size=1)])])
+        assert Diagram(root=root).root is root
+        assert Diagram.from_json(Diagram(root=root).to_json()).root == root
+
     def test_every_problem_is_reported_at_once(self) -> None:
         text = """
 root:

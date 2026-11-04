@@ -6,9 +6,9 @@ from collections.abc import Mapping
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, Tag, model_validator
 
-from flowgram._base import FrozenSeq, NonNegative, Positive, Spec
+from flowgram._base import FrozenSeq, NonNegative, Positive, Spec, kind_discriminator
 from flowgram.components import Box, Column, Edge, Row, iter_boxes
 from flowgram.theme import Theme
 
@@ -48,7 +48,10 @@ class Diagram(Spec):
 
     model_config = ConfigDict(hide_input_in_errors=True)
 
-    root: Annotated[Row | Column, Field(discriminator="kind")]
+    root: Annotated[
+        Annotated[Row, Tag("row")] | Annotated[Column, Tag("column")],
+        kind_discriminator("row", "column"),
+    ]
     edges: FrozenSeq[Edge] = ()
     theme: Theme = Field(default_factory=Theme.light)
     title: str | None = None

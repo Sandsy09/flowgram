@@ -8,6 +8,7 @@ from pydantic import (
     AfterValidator,
     BaseModel,
     ConfigDict,
+    Discriminator,
     Field,
     SerializationInfo,
     SerializerFunctionWrapHandler,
@@ -82,6 +83,37 @@ class Spec(BaseModel):
 def _excludes_kind(exclude: object) -> bool:
     """Return whether a dump's ``exclude`` argument names ``kind``."""
     return isinstance(exclude, set | frozenset | dict) and "kind" in exclude
+
+
+def _kind_of(value: object) -> object:
+    """Return the ``kind`` of a built spec or of plain data, or ``None``."""
+    if isinstance(value, Mapping):
+        return value.get("kind")
+    return getattr(value, "kind", None)
+
+
+def kind_discriminator(*kinds: str) -> Discriminator:
+    """Return the discriminator for a union of components, chosen by ``kind``.
+
+    Each member of the union is tagged with its ``kind``, as in
+    ``Annotated[Box, Tag("box")]``. Data whose ``kind`` is missing or not
+    valid in that place fails with one readable message that lists the
+    valid kinds, rather than Pydantic's message about discriminator tags.
+    Other problems in the spec are still reported alongside it.
+
+    Args:
+        kinds: The ``kind`` values valid in that place, in the order to list
+            them.
+
+    Returns:
+        The discriminator to put in the union's ``Annotated`` metadata.
+    """
+    choices = ", ".join(repr(kind) for kind in kinds)
+    return Discriminator(
+        _kind_of,
+        custom_error_type="kind",
+        custom_error_message=f"'kind' is missing or not one of: {choices}",
+    )
 
 
 def _check_colour(value: str) -> str:
