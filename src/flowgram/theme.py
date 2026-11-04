@@ -1,13 +1,14 @@
 """Themes: semantic colour roles plus typography and geometry defaults."""
 
-from typing import Self
+from typing import Annotated, Self
 
-from pydantic import model_validator
+from pydantic import AfterValidator, model_validator
 
 from flowgram._base import (
     Colour,
     Finite,
     FontWeight,
+    FrozenSeq,
     NonNegative,
     Opacity,
     Positive,
@@ -18,6 +19,40 @@ from flowgram._base import (
 
 DEFAULT_ROLE = "default"
 """The role every theme must define; boxes use it unless told otherwise."""
+
+GENERIC_FONT_FAMILIES = frozenset(
+    {"serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui"}
+)
+"""CSS generic families, which an SVG names without quotes."""
+
+_FONT_NAME_FORBIDDEN = "'\";<>&\\"
+
+
+def _check_font_name(value: str) -> str:
+    """Return ``value`` unchanged if it can be written into SVG as a font name.
+
+    Args:
+        value: A font family name such as ``"DejaVu Sans"``.
+
+    Returns:
+        The same string.
+
+    Raises:
+        ValueError: If the name is blank or holds a quote, semicolon, angle
+            bracket, ampersand or backslash, which no font name needs and
+            which would break the SVG's style attribute.
+    """
+    if not value.strip() or any(char in value for char in _FONT_NAME_FORBIDDEN):
+        msg = (
+            f"{value!r} is not a usable font name; it must not be blank or "
+            f"contain any of: {' '.join(_FONT_NAME_FORBIDDEN)}"
+        )
+        raise ValueError(msg)
+    return value
+
+
+FontName = Annotated[str, AfterValidator(_check_font_name)]
+"""A font family name, safe to write into an SVG style attribute."""
 
 
 class RoleStyle(Spec):
@@ -97,6 +132,12 @@ class Theme(Spec):
         name: A label for the theme, used in error messages.
         roles: Maps a role name to its colours. Must include ``"default"``.
         font_family: Font family used for all text.
+        font_fallbacks: Fonts an SVG viewer tries, in order, when it does
+            not have ``font_family``, ending in a CSS generic family such as
+            ``"sans-serif"``. Drawing and measuring always use
+            ``font_family``. The default puts Verdana first: it comes with
+            Windows and macOS, and its text is within about 2% of DejaVu
+            Sans's width, so labels still fit their boxes.
         title_size: Diagram title size in points.
         subtitle_size: Box subtitle size in points, and the diagram
             subtitle's unless ``title_subtitle_size`` is set.
@@ -147,7 +188,8 @@ class Theme(Spec):
     name: str = "custom"
     roles: dict[str, RoleStyle]
 
-    font_family: str = "DejaVu Sans"
+    font_family: FontName = "DejaVu Sans"
+    font_fallbacks: FrozenSeq[FontName] = ("Verdana", "sans-serif")
     title_size: Positive = 16.0
     subtitle_size: Positive = 11.0
     label_size: Positive = 11.0

@@ -163,8 +163,9 @@ share a side of a box share one anchor; font size does not change with `scale`.
 - `draw(ax)` draws into a caller's `Axes`: sets limits and equal aspect, axis off.
 - `save(path, dpi, transparent)` writes PNG, SVG or PDF by file extension. PNGs default
   to 300 dpi, sharp on a full-width 16:9 slide on a 4K screen.
-- SVG text stays as text (`svg.fonttype = "none"`) so it can be edited downstream. An
-  `embed_fonts` option converts text to paths.
+- SVG text stays as text (`svg.fonttype = "none"`) so it can be edited downstream. Each
+  text element names the theme's font, then `Theme.font_fallbacks` (default Verdana,
+  then `sans-serif`). An `embed_fonts` option converts text to paths.
 - A `Diagram` shows itself in Jupyter, as a PNG drawn at twice its shown size.
   `display_format="svg"` shows it as SVG. `to_png()` and `to_svg()` return the bytes or
   text that `save()` would write.
