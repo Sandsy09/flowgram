@@ -1,12 +1,40 @@
 [project]
 name = "flowgram"
 version = "0.1.0"
-description = "Reusable components, modular diagram builder"
+description = "Presentation-quality diagrams from a short, typed Python spec, drawn with matplotlib"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [
+    { name = "Sandsy09" },
+]
+keywords = [
+    "diagram",
+    "flowchart",
+    "matplotlib",
+    "pydantic",
+    "presentation",
+    "slides",
+    "svg",
+    "visualization",
+]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Jupyter",
+    "Framework :: Matplotlib",
+    "Framework :: Pydantic",
+    "Framework :: Pydantic :: 2",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Presentation",
+    "Topic :: Scientific/Engineering :: Visualization",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -20,8 +48,11 @@ yaml = [
 ]
 
 [project.urls]
+Homepage = "https://github.com/Sandsy09/flowgram"
+Documentation = "https://sandsy09.github.io/flowgram/"
 Repository = "https://github.com/Sandsy09/flowgram"
 Issues = "https://github.com/Sandsy09/flowgram/issues"
+Changelog = "https://github.com/Sandsy09/flowgram/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["uv_build>=0.12,<0.13"]
