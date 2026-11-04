@@ -1,7 +1,7 @@
 """Shared base model and validated field types for every flowgram spec."""
 
-from collections.abc import Sequence
-from typing import Annotated, Literal, TypeVar
+from collections.abc import Mapping, Sequence
+from typing import Annotated, Any, Literal, Self, TypeVar
 
 from matplotlib.colors import is_color_like
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
@@ -12,10 +12,41 @@ class Spec(BaseModel):
 
     Spec models are frozen, so fields cannot be reassigned after construction.
     Unknown fields are rejected, so a misspelt option fails loudly instead of
-    being ignored. Build variants with ``model_copy(update=...)``.
+    being ignored. Build variants with ``model_copy(update=...)``, which checks
+    the result just as construction does.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    def model_copy(
+        self, *, update: Mapping[str, Any] | None = None, deep: bool = False
+    ) -> Self:
+        """Return a copy of the spec, with ``update`` applied and checked.
+
+        Unlike plain Pydantic, a copy with ``update`` is built again through
+        ``model_validate``, so a bad value, an unknown field or a broken
+        reference raises the same ``ValidationError`` as building the spec
+        from scratch, with every problem listed. Values in ``update`` may be
+        specs or plain data, such as a dict with a ``kind``. Nested specs that
+        are not updated are reused as they are, since they were checked when
+        they were built.
+
+        Args:
+            update: Field values to change in the copy.
+            deep: Copy nested values too, rather than sharing them.
+
+        Returns:
+            The new spec.
+
+        Raises:
+            pydantic.ValidationError: If the updated spec is not valid.
+        """
+        if not update:
+            return super().model_copy(deep=deep)
+        data = {name: getattr(self, name) for name in self.model_fields_set}
+        data.update(update)
+        copy = self.model_validate(data)
+        return super(Spec, copy).model_copy(deep=True) if deep else copy
 
 
 def _check_colour(value: str) -> str:

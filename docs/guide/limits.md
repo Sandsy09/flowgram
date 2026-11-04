@@ -17,9 +17,6 @@
   so there are no group panels yet.
 - **Boxes are rectangles,** with rounded or square corners. There are no other
   shapes or legends.
-- **`model_copy` does not re-check values**
-  ([#88](https://github.com/Sandsy09/flowgram/issues/88)), so a bad value in a
-  variant only fails when the diagram is drawn.
 
 The [roadmap](../design/roadmap.md) plans group panels and grids for 0.2, more
 shapes and legends for 0.3, and better edges for 0.4.

@@ -78,7 +78,8 @@ spec.draw(ax)  # or draw into an Axes you already have
 spec.save("pipeline.svg")  # not built yet: milestone 5
 ```
 
-Models are frozen. Build variants with `model_copy(update=...)`. Loading uses explicit
+Models are frozen. Build variants with `model_copy(update=...)`, which `Spec` overrides
+to validate the result as construction does (#88). Loading uses explicit
 constructors: `Diagram.from_dict(data)`, `from_json(text)` and `from_yaml(text)`, plus
 `from_json_file(path)` and `from_yaml_file(path)` (YAML needs the `yaml` extra). They
 wrap `model_validate` and `model_validate_json`. Dict input needs a `kind` marker on

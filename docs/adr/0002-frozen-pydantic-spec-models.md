@@ -14,7 +14,8 @@ and JSON, and to be reused and varied safely.
 ## Decision
 
 Every spec model extends a `Spec` base that is frozen and forbids extra fields. Variants
-are made with `model_copy(update=...)`.
+are made with `model_copy(update=...)`. `Spec` overrides it so that an update is
+validated like construction, since Pydantic's own `model_copy` skips validation (#88).
 
 Components that can sit in a tree carry a `kind` literal, and the unions use a
 discriminator on `kind`, so nested specs load from dicts and JSON. Data loaded from a
