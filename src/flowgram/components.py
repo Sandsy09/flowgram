@@ -3,7 +3,7 @@
 from collections.abc import Iterator
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, Tag
 
 from flowgram._base import (
     Colour,
@@ -13,6 +13,7 @@ from flowgram._base import (
     Spec,
     TextAlign,
     TextVAlign,
+    kind_discriminator,
 )
 
 Align = Literal["start", "center", "end"]
@@ -135,7 +136,13 @@ class Column(_Container):
     kind: Literal["column"] = "column"
 
 
-Child = Annotated[Box | Spacer | Row | Column, Field(discriminator="kind")]
+Child = Annotated[
+    Annotated[Box, Tag("box")]
+    | Annotated[Spacer, Tag("spacer")]
+    | Annotated[Row, Tag("row")]
+    | Annotated[Column, Tag("column")],
+    kind_discriminator("box", "spacer", "row", "column"),
+]
 """Anything that can sit inside a Row or Column."""
 
 Row.model_rebuild()
