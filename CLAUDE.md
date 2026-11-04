@@ -57,7 +57,8 @@ uv run poe docs:build              # docs, warnings are errors
 ## Rules to keep
 
 - Every spec model extends `Spec`: frozen, `extra="forbid"`. Variants come from
-  `model_copy(update=...)`. Never add mutable state to a spec.
+  `model_copy(update=...)`, which `Spec` overrides to validate the result. Never add
+  mutable state to a spec.
 - Union members carry a `kind` literal and unions use `Field(discriminator="kind")`, so
   specs load from dicts and JSON. Dict input must include `kind`.
 - Validation reports every problem in one error, with the offending IDs and the valid
@@ -110,16 +111,12 @@ planned for later releases in the roadmap. Do not start them early.
 
 Done when the definition of done in the spec is ticked and 0.1.0 is on PyPI.
 
-1. Fixes found while building milestone 5, first:
-   - Validate spec variants made with `model_copy(update=...)` (#88). Needs the user's
-     decision on the API before it starts.
-   - Check exports in PowerPoint and settle the SVG font fallback (#85). The check is
-     done by hand by the user.
-   - Write specs back out without defaults, keeping `kind` (#91).
-2. Gallery: linear pipeline, branching model flow, nested layout (#25).
-3. README (#26) and the docs site with user guide and API reference (#27).
-4. Package metadata (#28), then trusted publishing and a release candidate (#30).
-5. Definition-of-done audit (#29), then the 0.1.0 release (#31).
+The gallery (#25), README (#26), docs site (#27), PowerPoint check and SVG font
+fallback (#85), and validated `model_copy` variants (#88) are done. Left:
+
+1. Write specs back out without defaults, keeping `kind` (#91).
+2. Package metadata (#28), then trusted publishing and a release candidate (#30).
+3. Definition-of-done audit (#29), then the 0.1.0 release (#31).
 
 `examples/card_flow.py` is the committed API check: a neutral rebuild of the user's
 reference slide. The reference itself is the user's work material: keep it and its text

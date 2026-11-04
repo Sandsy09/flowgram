@@ -65,9 +65,18 @@ except ValidationError as error:
 ```
 
 Specs cannot be changed once built. Make a variant with
-`model_copy(update={...})`, as above. `model_copy` does not re-check the values
-you pass it ([#88](https://github.com/Sandsy09/flowgram/issues/88)), so a bad
-value only shows up when the diagram is drawn.
+`model_copy(update={...})`, as above. The variant is checked just like a new
+spec, so a bad value, a misspelt field or an edge to a missing box fails at once,
+with every problem listed:
+
+```python
+try:
+    spec.model_copy(update={"scale": -1, "titel": "Typo"})
+except ValidationError as error:
+    print(error)
+```
+
+Values in `update` can be specs or plain data, such as a dict with a `kind`.
 
 ## Units
 
