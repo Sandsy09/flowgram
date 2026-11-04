@@ -28,7 +28,8 @@ class Diagram(Spec):
     flat list that refers to boxes by ``id`` wherever they sit in the tree.
     Construction checks the whole spec and reports every problem at once.
     Load a spec from data with ``from_dict``, ``from_json`` or ``from_yaml``,
-    or their file variants.
+    or their file variants, and write it back out, without its defaults, with
+    ``to_dict``, ``to_json`` or ``to_yaml``.
 
     Attributes:
         root: The top-level Row or Column.
@@ -157,6 +158,79 @@ class Diagram(Spec):
         from flowgram.loading import from_yaml_file
 
         return from_yaml_file(path)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the spec as plain data, without its defaults.
+
+        Every component keeps its ``kind``, and the theme is left out when
+        it is the default, so ``Diagram.from_dict(d.to_dict()) == d``.
+
+        Returns:
+            The spec as nested dicts and lists of JSON types.
+        """
+        from flowgram.loading import to_dict
+
+        return to_dict(self)
+
+    def to_json(self, *, indent: int | None = 2) -> str:
+        """Return the spec as JSON, without its defaults.
+
+        Args:
+            indent: Spaces per level, or ``None`` for one compact line.
+
+        Returns:
+            JSON text that ``Diagram.from_json`` loads back equal.
+        """
+        from flowgram.loading import to_json
+
+        return to_json(self, indent=indent)
+
+    def to_yaml(self) -> str:
+        """Return the spec as YAML, without its defaults.
+
+        Needs the ``yaml`` extra: ``pip install "flowgram[yaml]"``.
+
+        Returns:
+            YAML text that ``Diagram.from_yaml`` loads back equal.
+
+        Raises:
+            ImportError: If PyYAML is not installed.
+        """
+        from flowgram.loading import to_yaml
+
+        return to_yaml(self)
+
+    def to_json_file(
+        self, path: str | os.PathLike[str], *, indent: int | None = 2
+    ) -> None:
+        """Write the spec to a UTF-8 JSON file, without its defaults.
+
+        Args:
+            path: The file to write. An existing file is replaced.
+            indent: Spaces per level, or ``None`` for one compact line.
+
+        Raises:
+            OSError: If the file cannot be written.
+        """
+        from flowgram.loading import to_json_file
+
+        to_json_file(self, path, indent=indent)
+
+    def to_yaml_file(self, path: str | os.PathLike[str]) -> None:
+        """Write the spec to a UTF-8 YAML file, without its defaults.
+
+        Needs the ``yaml`` extra: ``pip install "flowgram[yaml]"``.
+
+        Args:
+            path: The file to write. An existing file is replaced.
+
+        Raises:
+            ImportError: If PyYAML is not installed.
+            OSError: If the file cannot be written.
+        """
+        from flowgram.loading import to_yaml_file
+
+        to_yaml_file(self, path)
 
     def render(self) -> "Figure":
         """Draw the diagram into a new matplotlib figure.

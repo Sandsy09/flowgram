@@ -83,7 +83,10 @@ to validate the result as construction does (#88). Loading uses explicit
 constructors: `Diagram.from_dict(data)`, `from_json(text)` and `from_yaml(text)`, plus
 `from_json_file(path)` and `from_yaml_file(path)` (YAML needs the `yaml` extra). They
 wrap `model_validate` and `model_validate_json`. Dict input needs a `kind` marker on
-every component.
+every component. Writers mirror them: `to_dict()`, `to_json()`, `to_yaml()`,
+`to_json_file(path)` and `to_yaml_file(path)` write only what differs from the
+defaults, keep every `kind`, and load back equal (#91). `Spec` keeps `kind` in any
+dump that leaves defaults out, so plain `model_dump(exclude_defaults=True)` loads too.
 
 ## Components
 

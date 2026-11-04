@@ -8,8 +8,8 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from flowgram import Box, Diagram, Row, Shadow, Theme
-from flowgram.loading import YAML_EXTRA_HINT
+from flowgram import Box, Column, Diagram, Edge, Row, Shadow, Spacer, Theme
+from flowgram.loading import YAML_EXTRA_HINT, to_dict, to_json, to_yaml
 from tests.conftest import spec_pipeline
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
@@ -135,6 +135,155 @@ edges:
             Diagram.from_json_file(tmp_path / "missing.json")
 
 
+def _kinds(data: object) -> list[object]:
+    """The ``kind`` of every component in nested data, ``None`` if missing."""
+    found: list[object] = []
+    if isinstance(data, dict):
+        if "children" in data or "label" in data or "size" in data:
+            found.append(data.get("kind"))
+        for value in data.values():
+            found.extend(_kinds(value))
+    elif isinstance(data, list):
+        for value in data:
+            found.extend(_kinds(value))
+    return found
+
+
+@pytest.mark.parametrize("spec", SPECS)
+class TestWriteRoundTrip:
+    def test_dict(self, spec: Callable[[], Diagram]) -> None:
+        diagram = spec()
+        assert Diagram.from_dict(diagram.to_dict()) == diagram
+
+    def test_dict_is_plain_json_data(self, spec: Callable[[], Diagram]) -> None:
+        data = spec().to_dict()
+        assert json.loads(json.dumps(data)) == data
+
+    def test_json(self, spec: Callable[[], Diagram]) -> None:
+        diagram = spec()
+        assert Diagram.from_json(diagram.to_json()) == diagram
+        assert Diagram.from_json(diagram.to_json(indent=None)) == diagram
+
+    def test_yaml(self, spec: Callable[[], Diagram]) -> None:
+        diagram = spec()
+        assert Diagram.from_yaml(diagram.to_yaml()) == diagram
+
+    def test_files(self, spec: Callable[[], Diagram], tmp_path: Path) -> None:
+        diagram = spec()
+        diagram.to_json_file(tmp_path / "spec.json")
+        diagram.to_yaml_file(tmp_path / "spec.yaml")
+        assert Diagram.from_json_file(tmp_path / "spec.json") == diagram
+        assert Diagram.from_yaml_file(tmp_path / "spec.yaml") == diagram
+
+    def test_shorter_than_a_full_dump(self, spec: Callable[[], Diagram]) -> None:
+        diagram = spec()
+        assert len(diagram.to_json(indent=None)) < len(diagram.model_dump_json())
+
+    def test_every_component_keeps_its_kind(self, spec: Callable[[], Diagram]) -> None:
+        kinds = _kinds(spec().to_dict()["root"])
+        assert kinds
+        assert None not in kinds
+
+    def test_functions_match_methods(self, spec: Callable[[], Diagram]) -> None:
+        diagram = spec()
+        assert to_dict(diagram) == diagram.to_dict()
+        assert to_json(diagram) == diagram.to_json()
+        assert to_yaml(diagram) == diagram.to_yaml()
+
+
+class TestWriting:
+    def test_only_what_differs_from_the_defaults(self) -> None:
+        diagram = Diagram(root=Row(children=[Box(id="a", label="A"), Spacer(size=1)]))
+        assert diagram.to_dict() == {
+            "root": {
+                "kind": "row",
+                "children": [
+                    {"kind": "box", "label": "A", "id": "a"},
+                    {"kind": "spacer", "size": 1.0},
+                ],
+            }
+        }
+
+    def test_default_theme_is_left_out(self) -> None:
+        assert "theme" not in spec_pipeline().to_dict()
+
+    def test_changed_theme_keeps_what_it_needs_to_load(self) -> None:
+        theme = Theme.light().model_copy(update={"label_size": 14})
+        diagram = spec_pipeline().model_copy(update={"theme": theme})
+        written = diagram.to_dict()["theme"]
+        assert written["label_size"] == 14
+        assert written["name"] == "light"
+        assert "roles" in written
+        assert "title_size" not in written
+        assert Diagram.from_dict(diagram.to_dict()) == diagram
+
+    def test_spec_pipeline_matches_the_example_file(self) -> None:
+        written = yaml.safe_load(spec_pipeline().to_yaml())
+        example = yaml.safe_load((EXAMPLES / "pipeline.yaml").read_text("utf-8"))
+        assert written == example
+
+    def test_kind_comes_first(self) -> None:
+        assert spec_pipeline().to_yaml().startswith("root:\n  kind: row\n")
+
+    def test_multi_line_text_is_a_block(self) -> None:
+        diagram = Diagram(root=Column(children=[Box(label="One\nTwo")]))
+        text = diagram.to_yaml()
+        assert "label: |-\n      One\n      Two\n" in text
+        assert Diagram.from_yaml(text) == diagram
+
+    @pytest.mark.parametrize("label", ["a\n", " x\n y ", "a\n\n", "tab\there"])
+    def test_awkward_text_round_trips(self, label: str) -> None:
+        diagram = Diagram(root=Row(children=[Box(label=label)]))
+        assert Diagram.from_yaml(diagram.to_yaml()) == diagram
+
+    def test_unicode_is_written_as_is(self) -> None:
+        diagram = Diagram(root=Row(children=[Box(label="Café → 30 °C")]))
+        assert "Café → 30 °C" in diagram.to_yaml()
+        assert "Café → 30 °C" in diagram.to_json()
+
+    def test_files_end_with_a_newline_and_use_utf8(self, tmp_path: Path) -> None:
+        diagram = Diagram(root=Row(children=[Box(label="Café")]))
+        diagram.to_json_file(tmp_path / "a.json", indent=None)
+        diagram.to_yaml_file(tmp_path / "a.yaml")
+        for name in ("a.json", "a.yaml"):
+            data = (tmp_path / name).read_bytes()
+            assert data.endswith(b"\n")
+            assert b"\r\n" not in data
+            assert "Café".encode() in data
+        assert (tmp_path / "a.json").read_bytes().count(b"\n") == 1
+
+    def test_edges_have_no_kind(self) -> None:
+        diagram = Diagram(
+            root=Row(children=[Box(id="a", label="A"), Box(id="b", label="B")]),
+            edges=[Edge(src="a", dst="b")],
+        )
+        assert diagram.to_dict()["edges"] == [{"src": "a", "dst": "b"}]
+
+
+class TestKindIsKept:
+    def test_plain_exclude_defaults_loads(self) -> None:
+        diagram = spec_pipeline()
+        text = diagram.model_dump_json(exclude_defaults=True)
+        assert Diagram.from_json(text) == diagram
+
+    def test_exclude_unset_keeps_kind(self) -> None:
+        data = Row(children=[Box(label="A")]).model_dump(exclude_unset=True)
+        assert data == {"kind": "row", "children": ({"kind": "box", "label": "A"},)}
+
+    def test_full_dump_is_unchanged(self) -> None:
+        data = Box(label="A").model_dump()
+        assert next(iter(data)) == "kind"
+        assert data["kind"] == "box"
+
+    def test_explicit_exclude_still_drops_kind(self) -> None:
+        data = Box(label="A").model_dump(exclude_defaults=True, exclude={"kind"})
+        assert data == {"label": "A"}
+
+    def test_specs_without_kind_are_unchanged(self) -> None:
+        data = Edge(src="a", dst="b").model_dump(exclude_defaults=True)
+        assert data == {"src": "a", "dst": "b"}
+
+
 class TestWithoutPyYAML:
     @pytest.fixture(autouse=True)
     def _hide_yaml(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -152,6 +301,18 @@ class TestWithoutPyYAML:
         diagram = spec_pipeline()
         assert Diagram.from_json(diagram.model_dump_json()) == diagram
         assert Diagram.from_dict(diagram.model_dump()) == diagram
+
+    def test_to_yaml_names_the_extra(self, tmp_path: Path) -> None:
+        with pytest.raises(ImportError, match="writing YAML needs PyYAML"):
+            spec_pipeline().to_yaml()
+        with pytest.raises(ImportError, match=r'pip install "flowgram\[yaml\]"'):
+            spec_pipeline().to_yaml_file(tmp_path / "spec.yaml")
+        assert not (tmp_path / "spec.yaml").exists()
+
+    def test_dict_and_json_still_write(self) -> None:
+        diagram = spec_pipeline()
+        assert Diagram.from_json(diagram.to_json()) == diagram
+        assert Diagram.from_dict(diagram.to_dict()) == diagram
 
     def test_hint(self) -> None:
         assert YAML_EXTRA_HINT == 'pip install "flowgram[yaml]"'

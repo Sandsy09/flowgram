@@ -108,6 +108,9 @@ spec = Diagram.from_yaml_file("pipeline.yaml")  # needs flowgram[yaml]
 spec = Diagram.from_json_file("pipeline.json")  # or from_dict, from_json
 ```
 
+`spec.to_yaml()`, `spec.to_json()` and `spec.to_dict()` write a spec back out,
+leaving out the defaults, and their file variants save it.
+
 ## Gallery
 
 Each image links to the script that draws it. `examples/gallery.ipynb` builds them

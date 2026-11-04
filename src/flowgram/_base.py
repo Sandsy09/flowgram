@@ -4,7 +4,15 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, Literal, Self, TypeVar
 
 from matplotlib.colors import is_color_like
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 
 class Spec(BaseModel):
@@ -17,6 +25,28 @@ class Spec(BaseModel):
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    @model_serializer(mode="wrap")
+    def _keep_kind(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Any:
+        """Dump the spec, keeping its ``kind`` when defaults are left out.
+
+        ``kind`` has a default, so ``exclude_defaults`` and ``exclude_unset``
+        would drop it, and the dump would no longer load: unions pick their
+        member by ``kind``. It is put back first, unless asked to be excluded.
+        """
+        data = handler(self)
+        kind = getattr(self, "kind", None)
+        if (
+            isinstance(data, dict)
+            and isinstance(kind, str)
+            and "kind" not in data
+            and (info.exclude_defaults or info.exclude_unset)
+            and not _excludes_kind(info.exclude)
+        ):
+            data = {"kind": kind, **data}
+        return data
 
     def model_copy(
         self, *, update: Mapping[str, Any] | None = None, deep: bool = False
@@ -47,6 +77,11 @@ class Spec(BaseModel):
         data.update(update)
         copy = self.model_validate(data)
         return super(Spec, copy).model_copy(deep=True) if deep else copy
+
+
+def _excludes_kind(exclude: object) -> bool:
+    """Return whether a dump's ``exclude`` argument names ``kind``."""
+    return isinstance(exclude, set | frozenset | dict) and "kind" in exclude
 
 
 def _check_colour(value: str) -> str:
